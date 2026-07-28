@@ -1,0 +1,137 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow: hidden;
+  background-color: #000;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  user-select: none;
+}
+
+#game-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+}
+
+#ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10;
+  pointer-events: none; /* Let clicks pass through to game container */
+}
+
+#hud {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: white;
+  text-shadow: 1px 1px 2px black;
+  font-weight: bold;
+}
+
+#fps-counter {
+  font-size: 20px;
+  margin-bottom: 5px;
+}
+
+#coordinates {
+  font-size: 14px;
+}
+
+/* Mobile Controls */
+#mobile-controls {
+  display: none; /* Hidden by default, shown via JS if touch device */
+}
+
+#joystick-zone {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  width: 150px;
+  height: 150px;
+  pointer-events: auto; /* Enable touch in this area */
+}
+
+#action-buttons {
+  position: absolute;
+  bottom: 40px;
+  right: 40px;
+  display: flex;
+  gap: 20px;
+  pointer-events: auto;
+}
+
+#action-buttons button {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+
+#action-buttons button:active {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* Start Screen */
+#start-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #74ebd5 0%, #9face6 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+#start-screen h1 {
+  font-size: 3rem;
+  color: white;
+  margin-bottom: 2rem;
+  text-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  text-align: center;
+}
+
+#btn-play {
+  padding: 15px 50px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  background: #ff5e62;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(255, 94, 98, 0.4);
+  transition: transform 0.2s, background 0.2s;
+  pointer-events: auto;
+}
+
+#btn-play:hover {
+  transform: scale(1.05);
+  background: #ff7275;
+}
+
+#btn-play:active {
+  transform: scale(0.95);
+}

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Roblox Style 3D Game</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <!-- Three.js Canvas container -->
+    <div id="game-container"></div>
+    
+    <!-- Start Screen Overlay -->
+    <div id="start-screen">
+      <h1>Roblox Style Game</h1>
+      <button id="btn-play">PLAY</button>
+    </div>
+    
+    <!-- UI Overlay (Hidden initially) -->
+    <div id="ui-layer" style="display: none;">
+      <div id="hud">
+        <div id="fps-counter">FPS: 0</div>
+        <div id="coordinates">X: 0, Y: 0, Z: 0</div>
+      </div>
+      
+      <!-- Mobile Controls (hidden by default on PC) -->
+      <div id="mobile-controls">
+        <div id="joystick-zone"></div>
+        <div id="action-buttons">
+          <button id="btn-sprint">Sprint</button>
+          <button id="btn-jump">Jump</button>
+        </div>
+      </div>
+    </div>
+    
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
