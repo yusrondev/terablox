@@ -13,10 +13,10 @@ export class SceneManager {
     // Fog — shorter distance to avoid rendering distant objects (performance boost)
     this.scene.fog = new THREE.Fog(skyColor, 30, 80);
     
-        // Renderer — antialias OFF for performance, pixel ratio capped at 1
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+    // Renderer — Enable antialias and respect device pixel ratio for sharp graphics
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(1); // Fixed at 1 for max performance
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // High-res without breaking GPUs
     
     // Shadows: Re-enabled with optimizations (1024x1024 map, tight frustum)
     this.renderer.shadowMap.enabled = true;
