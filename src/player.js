@@ -80,9 +80,13 @@ export class Player {
     
     this.mesh.add(this.leftLeg, this.rightLeg, this.torso, this.leftArm, this.rightArm, this.head);
     
-    // Only torso/head cast shadows (less shadow draw calls)
+    // All body parts cast shadows
+    this.leftLeg.children[0].castShadow = true;
+    this.rightLeg.children[0].castShadow = true;
+    this.leftArm.children[0].castShadow = true;
+    this.rightArm.children[0].castShadow = true;
     this.torso.castShadow = true;
-    this.head.castShadow  = true;
+    this.head.castShadow = true;
     
     this.sceneManager.scene.add(this.mesh);
   }

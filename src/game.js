@@ -45,10 +45,12 @@ export class Game {
     this.player.update(dt);
     this.npcManager.update(dt);
     
-    // 3. Camera follows player at shoulder height
+    // 3. Camera & Sun follow player
     const camTarget = this.player.mesh.position.clone();
     camTarget.y += 2.0; // look at chest/head level
     this.cameraManager.update(camTarget);
+    
+    this.sceneManager.updateSun(this.player.mesh.position);
     
     // 4. UI
     this.uiManager.update();

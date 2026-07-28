@@ -77,7 +77,12 @@ class NPC {
     head.position.set(0, 3.42, 0);
     
     this.mesh.add(this.leftLeg, this.rightLeg, this.leftArm, this.rightArm, torso, head);
-    // No shadows on NPCs for performance
+    
+    // Enable shadows for NPCs
+    this.mesh.traverse(child => {
+      if (child.isMesh) child.castShadow = true;
+    });
+    
     this.sceneManager.scene.add(this.mesh);
   }
   

@@ -37,6 +37,7 @@ export class CityGenerator {
       new THREE.MeshLambertMaterial({ color: this.colors.grass })
     );
     mesh.rotation.x = -Math.PI / 2;
+    mesh.receiveShadow = true;
     this.sceneManager.scene.add(mesh);
     
     // One big physics plane
@@ -72,6 +73,12 @@ export class CityGenerator {
     const buildIMs = this.colors.buildings.map(c =>
       new THREE.InstancedMesh(unitBoxGeo, new THREE.MeshLambertMaterial({ color: c }), Math.ceil(maxBuildings / this.colors.buildings.length) + 5)
     );
+    
+    roadIM.receiveShadow = true;
+    sidewalkIM.receiveShadow = true;
+    trunkIM.castShadow = true; trunkIM.receiveShadow = true;
+    leavesIM.castShadow = true; leavesIM.receiveShadow = true;
+    buildIMs.forEach(m => { m.castShadow = true; m.receiveShadow = true; });
     
     this.sceneManager.scene.add(roadIM, sidewalkIM, trunkIM, leavesIM, ...buildIMs);
     
