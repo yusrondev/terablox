@@ -11,7 +11,7 @@ export class CameraManager {
     
     this.distance = 10;
     this.minDistance = 3;
-    this.maxDistance = 18;
+    this.maxDistance = 45; // Increased to wide level
     
     this.isDragging = false;
     
@@ -37,45 +37,68 @@ export class CameraManager {
       this.distance = Math.max(this.minDistance, Math.min(this.maxDistance, this.distance + e.deltaY * 0.02));
     }, { passive: true });
     
-    // Touch drag for mobile (Multitouch safe)
+    // Touch drag & Pinch zoom for mobile
     this.activeTouchId = null;
     let lastX = 0, lastY = 0;
-    
+    let initialPinchDistance = null;
+    let initialCameraDistance = null;
+
+    const getPinchDistance = (touches) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
     this.domElement.addEventListener('touchstart', (e) => {
       e.preventDefault(); // prevent scroll/zoom
-      if (this.activeTouchId === null && e.changedTouches.length > 0) {
-        const touch = e.changedTouches[0];
+      if (e.targetTouches.length === 1) {
+        // Single touch for rotation
+        const touch = e.targetTouches[0];
         this.activeTouchId = touch.identifier;
         lastX = touch.clientX;
         lastY = touch.clientY;
+        initialPinchDistance = null;
+      } else if (e.targetTouches.length === 2) {
+        // Two touches for pinch zoom
+        this.activeTouchId = null; // pause rotation
+        initialPinchDistance = getPinchDistance(e.targetTouches);
+        initialCameraDistance = this.distance;
       }
     }, { passive: false });
     
     this.domElement.addEventListener('touchmove', (e) => {
       e.preventDefault();
-      if (this.activeTouchId !== null) {
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          const touch = e.changedTouches[i];
-          if (touch.identifier === this.activeTouchId) {
-            this.theta -= (touch.clientX - lastX) * 0.008;
-            this.phi   -= (touch.clientY - lastY) * 0.008;
-            this.phi = Math.max(0.05, Math.min(Math.PI / 2 + 0.1, this.phi));
-            lastX = touch.clientX;
-            lastY = touch.clientY;
-            break;
-          }
+      if (e.targetTouches.length === 1 && this.activeTouchId !== null) {
+        // Rotation
+        const touch = e.targetTouches[0];
+        if (touch.identifier === this.activeTouchId) {
+          this.theta -= (touch.clientX - lastX) * 0.008;
+          this.phi   -= (touch.clientY - lastY) * 0.008;
+          this.phi = Math.max(0.05, Math.min(Math.PI / 2 + 0.1, this.phi));
+          lastX = touch.clientX;
+          lastY = touch.clientY;
         }
+      } else if (e.targetTouches.length === 2 && initialPinchDistance !== null) {
+        // Pinch zoom
+        const currentDistance = getPinchDistance(e.targetTouches);
+        const zoomFactor = initialPinchDistance / currentDistance;
+        // Smoothly adjust distance
+        this.distance = Math.max(this.minDistance, Math.min(this.maxDistance, initialCameraDistance * zoomFactor));
       }
     }, { passive: false });
     
     const onTouchEnd = (e) => {
-      if (this.activeTouchId !== null) {
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          if (e.changedTouches[i].identifier === this.activeTouchId) {
-            this.activeTouchId = null;
-            break;
-          }
-        }
+      if (e.targetTouches.length < 2) {
+        initialPinchDistance = null;
+      }
+      if (e.targetTouches.length === 1) {
+        // Resume rotation if one finger remains
+        const touch = e.targetTouches[0];
+        this.activeTouchId = touch.identifier;
+        lastX = touch.clientX;
+        lastY = touch.clientY;
+      } else if (e.targetTouches.length === 0) {
+        this.activeTouchId = null;
       }
     };
     
@@ -96,6 +119,11 @@ export class CameraManager {
       this._target.y + this.distance * cosPhi,
       this._target.z + this.distance * sinPhi * Math.cos(this.theta)
     );
+    
+    // Prevent camera from clipping through the ground
+    if (this.camera.position.y < 0.5) {
+      this.camera.position.y = 0.5;
+    }
     
     this.camera.lookAt(this._target);
   }
