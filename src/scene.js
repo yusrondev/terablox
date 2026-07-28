@@ -62,10 +62,22 @@ export class SceneManager {
     this.scene.add(this.directionalLight.target);
     
     // Visual Sun Mesh
-    const sunGeo = new THREE.SphereGeometry(4, 16, 16);
-    this.sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffddaa });
+    const sunGeo = new THREE.SphereGeometry(24, 16, 16);
+    this.sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffddaa, fog: false });
     this.sunMesh = new THREE.Mesh(sunGeo, this.sunMaterial);
     this.scene.add(this.sunMesh);
+    
+    // Visual Moon Mesh (Round shape, voxel-style extrusion)
+    const moonShape = new THREE.Shape();
+    moonShape.absarc(0, 0, 16, 0, Math.PI * 2, false);
+    
+    const extrudeSettings = { depth: 6, bevelEnabled: false };
+    const moonGeo = new THREE.ExtrudeGeometry(moonShape, extrudeSettings);
+    moonGeo.center(); // Center geometry pivot
+    
+    this.moonMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false });
+    this.moonMesh = new THREE.Mesh(moonGeo, this.moonMaterial);
+    this.scene.add(this.moonMesh);
     
     // Sun offset
     this.sunOffset = new THREE.Vector3(30, 60, 30);
@@ -131,8 +143,17 @@ export class SceneManager {
     this.directionalLight.position.copy(playerPos).add(this.sunOffset);
     this.directionalLight.target.position.copy(playerPos);
     
-    // Move visual sun mesh to light position
-    this.sunMesh.position.copy(this.directionalLight.position);
+    // Move visual sun / moon meshes to light direction but MUCH farther away (e.g. 350 meters)
+    // so they are always rendered behind all buildings and objects
+    const sunDir = this.sunOffset.clone().normalize();
+    const targetPos = playerPos.clone().addScaledVector(sunDir, 350);
+    
+    this.sunMesh.position.copy(targetPos);
+    if (this.moonMesh) {
+      this.moonMesh.position.copy(targetPos);
+      this.moonMesh.lookAt(playerPos);
+      this.moonMesh.rotateZ(Math.PI / 6); // tilt crescent moon elegantly
+    }
   }
 
   updateWeather(dt, playerPos) {
