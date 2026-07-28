@@ -84,6 +84,42 @@ export class SceneManager {
 
     // Street lights material & light pool
     this.streetLightBulbMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+    this.streetLightConeMaterial = new THREE.MeshBasicMaterial({
+      color: 0xfff0aa,
+      transparent: true,
+      opacity: 0.0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    });
+    
+    this.streetLightConeMaterial.onBeforeCompile = (shader) => {
+      // Pass local position from vertex shader to fragment shader
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <common>',
+        `#include <common>
+         varying vec3 vLocalPosition;`
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+         vLocalPosition = position;`
+      );
+      
+      // Add varying and calculate vertical fade in fragment shader
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <common>',
+        `#include <common>
+         varying vec3 vLocalPosition;`
+      );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        'vec4 diffuseColor = vec4( diffuse, opacity );',
+        `float fade = 1.0 + (vLocalPosition.y / 4.3);
+         fade = clamp(fade, 0.0, 1.0);
+         float smoothFade = pow(fade, 2.0);
+         vec4 diffuseColor = vec4( diffuse, opacity * smoothFade );`
+      );
+    };
     this.streetLightPositions = [];
     this.streetLightPool = [];
     for (let i = 0; i < 20; i++) {
@@ -97,15 +133,22 @@ export class SceneManager {
   }
   
   setStreetLightsIntensity(intensity, playerPos) {
-    // 1. Bulb glow material update (Super bright yellow glow)
+    // 1. Bulb glow material update (Super bright yellow glow) and cone opacity update
     if (intensity < 0.05) {
       this.streetLightBulbMaterial.color.setHex(0x333333);
       this.windowMaterial.color.setHex(0x25303b); // Dark window glass during day
+      if (this.streetLightConeMaterial) {
+        this.streetLightConeMaterial.opacity = 0.0;
+      }
     } else {
       const rBulb = Math.min(1.0, 0.3 + intensity * 0.7);
       const gBulb = Math.min(1.0, 0.3 + intensity * 0.65);
       const bBulb = Math.min(1.0, 0.3 + intensity * 0.35);
       this.streetLightBulbMaterial.color.setRGB(rBulb, gBulb, bBulb);
+
+      if (this.streetLightConeMaterial) {
+        this.streetLightConeMaterial.opacity = intensity * 0.28; // boosted brightness near top
+      }
 
       // Building windows glow brightly at night and during rain
       const rWin = Math.min(1.0, 0.15 + intensity * 0.83);

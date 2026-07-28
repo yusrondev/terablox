@@ -112,6 +112,10 @@ export class CityGenerator {
     const slHeadIM   = new THREE.InstancedMesh(slHeadGeo, new THREE.MeshLambertMaterial({ color: 0x1f2327 }), totalBlocks * 4);
     const slBulbIM   = new THREE.InstancedMesh(slBulbGeo, this.sceneManager.streetLightBulbMaterial, totalBlocks * 4);
     
+    const slConeGeo  = new THREE.CylinderGeometry(0.22, 2.5, 4.3, 8, 1, true);
+    slConeGeo.translate(0, -2.15, 0);
+    const slConeIM   = new THREE.InstancedMesh(slConeGeo, this.sceneManager.streetLightConeMaterial, totalBlocks * 4);
+    
     const windowFrameIM = new THREE.InstancedMesh(windowFrameGeo, new THREE.MeshLambertMaterial({ color: 0x1a1d20 }), maxWindows);
     const windowIM      = new THREE.InstancedMesh(windowGeo, this.sceneManager.windowMaterial, maxWindows);
     
@@ -176,7 +180,7 @@ export class CityGenerator {
     
     this.sceneManager.scene.add(roadIM, sidewalkIM, trunkIM, leavesIM);
     this.sceneManager.scene.add(tlPoleIM, tlHouseIM);
-    this.sceneManager.scene.add(slPoleIM, slArmIM, slHeadIM, slBulbIM);
+    this.sceneManager.scene.add(slPoleIM, slArmIM, slHeadIM, slBulbIM, slConeIM);
     this.sceneManager.scene.add(windowFrameIM, windowIM);
     this.sceneManager.scene.add(benchSeatIM, benchBackIM, benchLegIM, ...buildIMs);
     this.sceneManager.scene.add(trashBinIM, bottleGreenIM, bottleBrownIM, puddleIM);
@@ -406,6 +410,7 @@ export class CityGenerator {
             scale.set(1, 1, 1)
           );
           slBulbIM.setMatrixAt(slIdx, mat);
+          slConeIM.setMatrixAt(slIdx, mat);
 
           // Store light position for night point lighting
           this.sceneManager.streetLightPositions.push(new THREE.Vector3(headX, 4.5, headZ));
