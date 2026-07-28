@@ -271,8 +271,18 @@ export class WeatherManager {
       this.sceneManager.scene.fog.color.lerp(flashColor, this.lightningFlash * 0.9);
     }
     
-    this.sceneManager.scene.fog.near += (targetPreset.fogNear - this.sceneManager.scene.fog.near) * lerpSpeed;
-    this.sceneManager.scene.fog.far += (targetPreset.fogFar - this.sceneManager.scene.fog.far) * lerpSpeed;
+    // Scale fog distance based on graphics level to match camera draw distance culling
+    let graphicsFogScale = 1.0;
+    if (this.sceneManager.graphicsLevel === 'low') {
+      graphicsFogScale = 0.55;
+    } else if (this.sceneManager.graphicsLevel === 'med') {
+      graphicsFogScale = 0.8;
+    }
+    const scaledFogNear = targetPreset.fogNear * graphicsFogScale;
+    const scaledFogFar = targetPreset.fogFar * graphicsFogScale;
+
+    this.sceneManager.scene.fog.near += (scaledFogNear - this.sceneManager.scene.fog.near) * lerpSpeed;
+    this.sceneManager.scene.fog.far += (scaledFogFar - this.sceneManager.scene.fog.far) * lerpSpeed;
     
     // 2. Lerp Ambient & Directional Lights
     this.sceneManager.ambientLight.color.lerp(targetPreset.ambientColor, lerpSpeed);

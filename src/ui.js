@@ -12,6 +12,7 @@ export class UIManager {
     
     this.initWeatherButtons();
     this.initInteractButton();
+    this.initSettingsPanel();
   }
   
   initInteractButton() {
@@ -49,6 +50,60 @@ export class UIManager {
           this.sceneManager.weatherManager.setWeather(weatherType);
           
           buttons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
+  }
+  
+  initSettingsPanel() {
+    const btnToggle = document.getElementById('btn-settings-toggle');
+    const panel = document.getElementById('settings-panel');
+    const btnClose = document.getElementById('btn-settings-close');
+    
+    if (btnToggle && panel) {
+      btnToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.classList.toggle('settings-closed');
+      });
+    }
+    
+    if (btnClose && panel) {
+      btnClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.classList.add('settings-closed');
+      });
+    }
+    
+    // Close settings panel when clicking outside
+    document.addEventListener('click', (e) => {
+      if (panel && !panel.classList.contains('settings-closed')) {
+        const container = document.getElementById('settings-container');
+        if (container && !container.contains(e.target)) {
+          panel.classList.add('settings-closed');
+        }
+      }
+    });
+
+    // Initialize Graphics settings buttons
+    const graphicsButtons = document.querySelectorAll('.graphics-btn');
+    const activeLevel = this.sceneManager ? this.sceneManager.graphicsLevel : 'med';
+    
+    graphicsButtons.forEach(btn => {
+      const level = btn.getAttribute('data-graphics');
+      if (level === activeLevel) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+      
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const selectedLevel = btn.getAttribute('data-graphics');
+        if (selectedLevel && this.sceneManager) {
+          this.sceneManager.setGraphicsLevel(selectedLevel);
+          
+          graphicsButtons.forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
         }
       });

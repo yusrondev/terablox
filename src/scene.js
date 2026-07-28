@@ -35,6 +35,17 @@ export class SceneManager {
     this.weatherManager = new WeatherManager(this);
     
     window.addEventListener('resize', this.onWindowResize.bind(this));
+
+    // Graphics Settings Auto Detection / Load
+    let savedLevel = localStorage.getItem('graphicsLevel');
+    if (!savedLevel) {
+      savedLevel = this.detectHardwareGraphicsLevel();
+      localStorage.setItem('graphicsLevel', savedLevel);
+      console.log(`Auto-detected hardware graphics level: ${savedLevel}`);
+    } else {
+      console.log(`Loaded saved graphics level: ${savedLevel}`);
+    }
+    this.setGraphicsLevel(savedLevel);
   }
   
   setupLights() {
@@ -205,8 +216,133 @@ export class SceneManager {
     }
   }
   
+  detectHardwareGraphicsLevel() {
+    // Detect CPU logical cores
+    const cores = navigator.hardwareConcurrency || 4;
+    
+    // Get WebGL GPU information
+    const gl = this.renderer.getContext();
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    let gpu = '';
+    if (debugInfo) {
+      gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+    }
+    gpu = gpu.toLowerCase();
+    
+    // Mobile device detection (using userAgent and touch support)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0);
+
+    console.log(`[Hardware Detection] CPU Cores: ${cores}, GPU: "${gpu}", Mobile: ${isMobile}`);
+
+    // Known list of lower-performance mobile / integrated GPUs
+    const lowEndGPUs = [
+      'intel hd', 'intel uhd', 'intel iris', 'amd radeon r2', 'amd radeon r3', 'amd radeon r4', 
+      'amd radeon r5', 'mali-t', 'mali-g31', 'mali-g51', 'mali-g52', 'adreno (tm) 3', 'adreno (tm) 5',
+      'powervr', 'videocore'
+    ];
+    const isLowEndGPU = lowEndGPUs.some(name => gpu.includes(name));
+
+    // High performance desktop GPUs
+    const highEndGPUs = [
+      'rtx', 'gtx 10', 'gtx 16', 'gtx 9', 'radeon rx', 'apple m1', 'apple m2', 'apple m3', 'apple m4'
+    ];
+    const isHighEndGPU = highEndGPUs.some(name => gpu.includes(name));
+
+    if (isMobile) {
+      // For mobile devices, default to low to preserve battery/prevent heat,
+      // unless it's a newer chip with 8+ cores and a decent GPU
+      if (cores >= 8 && (gpu.includes('adreno (tm) 6') || gpu.includes('adreno (tm) 7') || gpu.includes('mali-g7') || gpu.includes('apple gpu'))) {
+        return 'med';
+      }
+      return 'low';
+    }
+
+    if (isLowEndGPU || cores < 4) {
+      return 'low';
+    }
+
+    if (isHighEndGPU || cores >= 8) {
+      return 'high';
+    }
+
+    return 'med'; // default fallback
+  }
+
+  applyCameraGraphicsSettings() {
+    if (this.camera && this.camera.camera) {
+      const farPlane = (this.graphicsLevel === 'low') ? 150 : (this.graphicsLevel === 'med' ? 250 : 500);
+      this.camera.camera.far = farPlane;
+      this.camera.camera.updateProjectionMatrix();
+    }
+  }
+
+  setGraphicsLevel(level) {
+    this.graphicsLevel = level;
+    localStorage.setItem('graphicsLevel', level);
+    
+    const hasShadows = (level !== 'low');
+    
+    // 1. Toggle shadows on renderer
+    this.renderer.shadowMap.enabled = hasShadows;
+    
+    // 2. Set shadow map type (Soft shadows only on high)
+    if (level === 'high') {
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    } else {
+      this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    }
+
+    // 3. Configure directional light shadows
+    if (this.directionalLight) {
+      this.directionalLight.castShadow = hasShadows;
+      
+      if (hasShadows) {
+        const shadowSize = (level === 'high') ? 2048 : 512;
+        if (this.directionalLight.shadow.mapSize.width !== shadowSize) {
+          this.directionalLight.shadow.mapSize.width = shadowSize;
+          this.directionalLight.shadow.mapSize.height = shadowSize;
+          
+          // Re-create shadow map buffer in Three.js
+          if (this.directionalLight.shadow.map) {
+            this.directionalLight.shadow.map.dispose();
+            this.directionalLight.shadow.map = null;
+          }
+        }
+      }
+    }
+
+    // 4. Set resolution scale (DPR)
+    let pixelRatioLimit = 1.0;
+    if (level === 'low') {
+      pixelRatioLimit = 0.8;
+    } else if (level === 'med') {
+      pixelRatioLimit = 1.15;
+    } else {
+      pixelRatioLimit = 2.0;
+    }
+    const targetPixelRatio = Math.min(window.devicePixelRatio, pixelRatioLimit);
+    this.renderer.setPixelRatio(targetPixelRatio);
+
+    // 5. Apply camera specific changes
+    this.applyCameraGraphicsSettings();
+
+    // 6. Traverse and apply shadow states to all meshes
+    this.scene.traverse(node => {
+      if (node.isMesh || node.isInstancedMesh) {
+        node.castShadow = hasShadows;
+        node.receiveShadow = hasShadows;
+        if (node.material) {
+          node.material.needsUpdate = true;
+        }
+      }
+    });
+
+    this.renderer.shadowMap.needsUpdate = true;
+  }
+
   setCamera(camera) {
     this.camera = camera;
+    this.applyCameraGraphicsSettings();
   }
   
   onWindowResize() {
