@@ -13,7 +13,7 @@ import * as CANNON from 'cannon-es';
 // Physics: one sphere at y = SPHERE_R above foot level.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SPHERE_R = 1.0;   // radius of physics sphere
+const SPHERE_R = 0.5;   // radius of physics sphere
 const FOOT_OFFSET = 0;  // mesh.position = body.position (body origin IS the feet)
 
 export class Player {
@@ -87,6 +87,8 @@ export class Player {
     this.rightArm.children[0].castShadow = true;
     this.torso.castShadow = true;
     this.head.castShadow = true;
+    
+    this.mesh.scale.set(0.5, 0.5, 0.5); // Shrink to human proportions
     
     this.sceneManager.scene.add(this.mesh);
   }

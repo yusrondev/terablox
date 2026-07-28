@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
-const SPHERE_R = 1.0; // Must match player.js
+const SPHERE_R = 0.5; // Must match player.js
 
 export class NPCManager {
   constructor(sceneManager, physicsManager) {
@@ -82,6 +82,8 @@ class NPC {
     this.mesh.traverse(child => {
       if (child.isMesh) child.castShadow = true;
     });
+    
+    this.mesh.scale.set(0.5, 0.5, 0.5);
     
     this.sceneManager.scene.add(this.mesh);
   }

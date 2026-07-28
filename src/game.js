@@ -47,7 +47,7 @@ export class Game {
     
     // 3. Camera & Sun follow player
     const camTarget = this.player.mesh.position.clone();
-    camTarget.y += 2.0; // look at chest/head level
+    camTarget.y += 1.0; // look at chest/head level
     this.cameraManager.update(camTarget);
     
     this.sceneManager.updateSun(this.player.mesh.position);
