@@ -66,16 +66,85 @@ export class CityGenerator {
     const tlPoleGeo   = new THREE.BoxGeometry(0.15, 3.5, 0.15);
     const tlHouseGeo  = new THREE.BoxGeometry(0.6, 1.5, 0.6);
     
+    // Street Light Geometries
+    const slPoleGeo  = new THREE.BoxGeometry(0.18, 4.5, 0.18);
+    const slArmGeo   = new THREE.BoxGeometry(0.12, 0.12, 1.2);
+    const slHeadGeo  = new THREE.BoxGeometry(0.4, 0.18, 0.6);
+    const slBulbGeo  = new THREE.BoxGeometry(0.3, 0.08, 0.45);
+    
+    // Window Geometries
+    const windowGeo      = new THREE.BoxGeometry(0.85, 1.25, 0.06);
+    const windowFrameGeo = new THREE.BoxGeometry(0.95, 1.35, 0.04);
+    const maxWindows = 6000;
+    
+    // Bench Geometries
+    const benchSeatGeo = new THREE.BoxGeometry(2.0, 0.1, 0.6);
+    const benchBackGeo = new THREE.BoxGeometry(2.0, 0.4, 0.1);
+    const benchLegGeo  = new THREE.BoxGeometry(0.1, 0.5, 0.5);
+    const maxBenches = totalBlocks * 4;
+    
     // ── InstancedMeshes ──
-    const roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createRoadTexture() });
+    const roadMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      map: this.createRoadTexture(),
+      roughness: 0.85,
+      metalness: 0.05
+    });
+    this.sceneManager.roadMaterial = roadMat;
+
+    const sidewalkMat = new THREE.MeshStandardMaterial({
+      color: this.colors.sidewalk,
+      roughness: 0.8,
+      metalness: 0.05
+    });
+    this.sceneManager.sidewalkMaterial = sidewalkMat;
+
     const roadIM     = new THREE.InstancedMesh(roadGeo, roadMat, totalBlocks);
-    const sidewalkIM = new THREE.InstancedMesh(sidewalkGeo, new THREE.MeshLambertMaterial({ color: this.colors.sidewalk }), totalBlocks);
+    const sidewalkIM = new THREE.InstancedMesh(sidewalkGeo, sidewalkMat, totalBlocks);
     const trunkIM    = new THREE.InstancedMesh(trunkGeo,  new THREE.MeshLambertMaterial({ color: this.colors.wood }), maxTrees);
     const leavesIM   = new THREE.InstancedMesh(leavesGeo, new THREE.MeshLambertMaterial({ color: this.colors.leaves }), maxTrees);
     
     const tlPoleIM   = new THREE.InstancedMesh(tlPoleGeo, new THREE.MeshLambertMaterial({ color: 0x444444 }), totalBlocks * 4);
     const tlHouseIM  = new THREE.InstancedMesh(tlHouseGeo, new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createTrafficLightTexture() }), totalBlocks * 4);
     
+    const slPoleIM   = new THREE.InstancedMesh(slPoleGeo, new THREE.MeshLambertMaterial({ color: 0x2b3036 }), totalBlocks * 4);
+    const slArmIM    = new THREE.InstancedMesh(slArmGeo,  new THREE.MeshLambertMaterial({ color: 0x2b3036 }), totalBlocks * 4);
+    const slHeadIM   = new THREE.InstancedMesh(slHeadGeo, new THREE.MeshLambertMaterial({ color: 0x1f2327 }), totalBlocks * 4);
+    const slBulbIM   = new THREE.InstancedMesh(slBulbGeo, this.sceneManager.streetLightBulbMaterial, totalBlocks * 4);
+    
+    const windowFrameIM = new THREE.InstancedMesh(windowFrameGeo, new THREE.MeshLambertMaterial({ color: 0x1a1d20 }), maxWindows);
+    const windowIM      = new THREE.InstancedMesh(windowGeo, this.sceneManager.windowMaterial, maxWindows);
+    
+    const benchSeatIM = new THREE.InstancedMesh(benchSeatGeo, new THREE.MeshLambertMaterial({ color: 0x8b5a2b }), maxBenches);
+    const benchBackIM = new THREE.InstancedMesh(benchBackGeo, new THREE.MeshLambertMaterial({ color: 0x8b5a2b }), maxBenches);
+    const benchLegIM  = new THREE.InstancedMesh(benchLegGeo,  new THREE.MeshLambertMaterial({ color: 0x111111 }), maxBenches * 2);
+
+    // Trash Bins & Bottles InstancedMeshes
+    const trashBinGeo = new THREE.CylinderGeometry(0.25, 0.22, 0.8, 8);
+    const trashBinMat = new THREE.MeshLambertMaterial({ color: 0x2d3436 });
+    const maxTrashBins = totalBlocks * 4;
+    const trashBinIM = new THREE.InstancedMesh(trashBinGeo, trashBinMat, maxTrashBins);
+
+    const bottleGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.25, 6);
+    const bottleGreenMat = new THREE.MeshLambertMaterial({ color: 0x2e8b57, transparent: true, opacity: 0.8 });
+    const bottleBrownMat = new THREE.MeshLambertMaterial({ color: 0x8b5a2b, transparent: true, opacity: 0.8 });
+    const maxBottles = totalBlocks * 12;
+    const bottleGreenIM = new THREE.InstancedMesh(bottleGeo, bottleGreenMat, maxBottles);
+    const bottleBrownIM = new THREE.InstancedMesh(bottleGeo, bottleBrownMat, maxBottles);
+
+    // Puddle InstancedMesh
+    const puddleGeo = new THREE.CircleGeometry(1.5, 8);
+    const puddleMat = new THREE.MeshStandardMaterial({
+      color: 0x111317,
+      roughness: 0.1,
+      metalness: 0.8,
+      transparent: true,
+      opacity: 0.0
+    });
+    this.sceneManager.puddleMaterial = puddleMat;
+    const maxPuddles = totalBlocks * 6;
+    const puddleIM = new THREE.InstancedMesh(puddleGeo, puddleMat, maxPuddles);
+
     // One InstancedMesh per building color
     const buildIMs = this.colors.buildings.map(c =>
       new THREE.InstancedMesh(unitBoxGeo, new THREE.MeshLambertMaterial({ color: c }), Math.ceil(maxBuildings / this.colors.buildings.length) + 5)
@@ -87,12 +156,43 @@ export class CityGenerator {
     leavesIM.castShadow = true; leavesIM.receiveShadow = true;
     tlPoleIM.castShadow = true; tlPoleIM.receiveShadow = true;
     tlHouseIM.castShadow = true; tlHouseIM.receiveShadow = true;
+    slPoleIM.castShadow = true; slPoleIM.receiveShadow = true;
+    slArmIM.castShadow = true;  slArmIM.receiveShadow = true;
+    slHeadIM.castShadow = true; slHeadIM.receiveShadow = true;
+    windowFrameIM.castShadow = true; windowFrameIM.receiveShadow = true;
+    windowIM.castShadow = true;      windowIM.receiveShadow = true;
+    
+    benchSeatIM.castShadow = true; benchSeatIM.receiveShadow = true;
+    benchBackIM.castShadow = true; benchBackIM.receiveShadow = true;
+    benchLegIM.castShadow = true;  benchLegIM.receiveShadow = true;
+
+    trashBinIM.castShadow = true;    trashBinIM.receiveShadow = true;
+    bottleGreenIM.castShadow = true; bottleGreenIM.receiveShadow = true;
+    bottleBrownIM.castShadow = true; bottleBrownIM.receiveShadow = true;
+
+    puddleIM.receiveShadow = true;
+
     buildIMs.forEach(m => { m.castShadow = true; m.receiveShadow = true; });
     
-    this.sceneManager.scene.add(roadIM, sidewalkIM, trunkIM, leavesIM, tlPoleIM, tlHouseIM, ...buildIMs);
+    this.sceneManager.scene.add(roadIM, sidewalkIM, trunkIM, leavesIM);
+    this.sceneManager.scene.add(tlPoleIM, tlHouseIM);
+    this.sceneManager.scene.add(slPoleIM, slArmIM, slHeadIM, slBulbIM);
+    this.sceneManager.scene.add(windowFrameIM, windowIM);
+    this.sceneManager.scene.add(benchSeatIM, benchBackIM, benchLegIM, ...buildIMs);
+    this.sceneManager.scene.add(trashBinIM, bottleGreenIM, bottleBrownIM, puddleIM);
     
+    // Reset positions array in scene manager
+    this.sceneManager.streetLightPositions = [];
+
     // ── Counters ──
-    let rIdx = 0, swIdx = 0, trIdx = 0, lvIdx = 0, tlIdx = 0;
+    let winIdx = 0;
+    let benchIdx = 0;
+    let benchLegIdx = 0;
+    let trashBinIdx = 0;
+    let bottleGreenIdx = 0;
+    let bottleBrownIdx = 0;
+    let puddleIdx = 0;
+    let rIdx = 0, swIdx = 0, trIdx = 0, lvIdx = 0, tlIdx = 0, slIdx = 0;
     const bIdx = new Array(buildIMs.length).fill(0);
     
     // ── Reusable matrix helpers ──
@@ -173,6 +273,61 @@ export class CityGenerator {
             bb.addShape(new CANNON.Box(new CANNON.Vec3(w / 2, halfH, d / 2)));
             bb.position.set(bldX, posY, bldZ);
             this.physicsManager.addBody(bb);
+
+            // Store exact THREE.Box3 bounding box for camera collision avoidance
+            const bldBox = new THREE.Box3(
+              new THREE.Vector3(bldX - w / 2, 0.4, bldZ - d / 2),
+              new THREE.Vector3(bldX + w / 2, 0.4 + h, bldZ + d / 2)
+            );
+            this.sceneManager.buildingBoxes.push(bldBox);
+
+            // ── Building Windows ──
+            const floorSpacing = 2.8;
+            const startY = 0.4 + 2.0;
+            const endY = 0.4 + h - 1.2;
+
+            const qSide = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+            const qFront = new THREE.Quaternion().set(0, 0, 0, 1);
+
+            for (let wy = startY; wy <= endY; wy += floorSpacing) {
+              // Front (+Z) & Back (-Z)
+              const colsX = Math.floor((w - 1.2) / 2.0);
+              for (let col = 0; col < colsX; col++) {
+                if (winIdx >= maxWindows - 4) break;
+                const wx = bldX - ((colsX - 1) * 2.0) / 2 + col * 2.0;
+
+                // Front (+Z)
+                mat.compose(pos.set(wx, wy, bldZ + d / 2 + 0.04), qFront, scale.set(1, 1, 1));
+                windowFrameIM.setMatrixAt(winIdx, mat);
+                mat.compose(pos.set(wx, wy, bldZ + d / 2 + 0.06), qFront, scale.set(1, 1, 1));
+                windowIM.setMatrixAt(winIdx++, mat);
+
+                // Back (-Z)
+                mat.compose(pos.set(wx, wy, bldZ - d / 2 - 0.04), qFront, scale.set(1, 1, 1));
+                windowFrameIM.setMatrixAt(winIdx, mat);
+                mat.compose(pos.set(wx, wy, bldZ - d / 2 - 0.06), qFront, scale.set(1, 1, 1));
+                windowIM.setMatrixAt(winIdx++, mat);
+              }
+
+              // Right (+X) & Left (-X)
+              const colsZ = Math.floor((d - 1.2) / 2.0);
+              for (let col = 0; col < colsZ; col++) {
+                if (winIdx >= maxWindows - 4) break;
+                const wz = bldZ - ((colsZ - 1) * 2.0) / 2 + col * 2.0;
+
+                // Right (+X)
+                mat.compose(pos.set(bldX + w / 2 + 0.04, wy, wz), qSide, scale.set(1, 1, 1));
+                windowFrameIM.setMatrixAt(winIdx, mat);
+                mat.compose(pos.set(bldX + w / 2 + 0.06, wy, wz), qSide, scale.set(1, 1, 1));
+                windowIM.setMatrixAt(winIdx++, mat);
+
+                // Left (-X)
+                mat.compose(pos.set(bldX - w / 2 - 0.04, wy, wz), qSide, scale.set(1, 1, 1));
+                windowFrameIM.setMatrixAt(winIdx, mat);
+                mat.compose(pos.set(bldX - w / 2 - 0.06, wy, wz), qSide, scale.set(1, 1, 1));
+                windowIM.setMatrixAt(winIdx++, mat);
+              }
+            }
           }
         }
         
@@ -209,16 +364,236 @@ export class CityGenerator {
           
           tlIdx++;
         }
+
+        // ── Street Lights ──
+        const slPositions = [
+          { x: 0,        z: -swHalf, rot: 0,           armDx: 0,     armDz: -0.5 },
+          { x: 0,        z:  swHalf, rot: Math.PI,     armDx: 0,     armDz: 0.5 },
+          { x: -swHalf,  z: 0,       rot: Math.PI / 2, armDx: -0.5,  armDz: 0 },
+          { x:  swHalf,  z: 0,       rot: -Math.PI / 2,armDx: 0.5,   armDz: 0 }
+        ];
+
+        for (const lightCfg of slPositions) {
+          const lx = ox + lightCfg.x;
+          const lz = oz + lightCfg.z;
+
+          // Pole (height 4.5 -> center at 2.25 + 0.4 = 2.65)
+          mat.makeTranslation(lx, 2.65, lz);
+          slPoleIM.setMatrixAt(slIdx, mat);
+
+          // Arm (top of pole at y=4.8, extending towards road)
+          mat.compose(
+            pos.set(lx + lightCfg.armDx * 0.5, 4.8, lz + lightCfg.armDz * 0.5),
+            qRot.setFromAxisAngle(new THREE.Vector3(0, 1, 0), lightCfg.rot),
+            scale.set(1, 1, 1)
+          );
+          slArmIM.setMatrixAt(slIdx, mat);
+
+          // Head fixture
+          const headX = lx + lightCfg.armDx;
+          const headZ = lz + lightCfg.armDz;
+          mat.compose(
+            pos.set(headX, 4.8, headZ),
+            qRot.setFromAxisAngle(new THREE.Vector3(0, 1, 0), lightCfg.rot),
+            scale.set(1, 1, 1)
+          );
+          slHeadIM.setMatrixAt(slIdx, mat);
+
+          // Bulb mesh
+          mat.compose(
+            pos.set(headX, 4.68, headZ),
+            qRot.setFromAxisAngle(new THREE.Vector3(0, 1, 0), lightCfg.rot),
+            scale.set(1, 1, 1)
+          );
+          slBulbIM.setMatrixAt(slIdx, mat);
+
+          // Store light position for night point lighting
+          this.sceneManager.streetLightPositions.push(new THREE.Vector3(headX, 4.5, headZ));
+
+          // Physics collider for pole
+          const slBody = new CANNON.Body({ mass: 0 });
+          slBody.addShape(new CANNON.Box(new CANNON.Vec3(0.09, 2.25, 0.09)));
+          slBody.position.set(lx, 2.65, lz);
+          this.physicsManager.addBody(slBody);
+
+          slIdx++;
+          
+          // ── Benches (placed near street lights) ──
+          // Put bench 3 meters offset from the street light
+          const bx = lx + lightCfg.armDz * 3;
+          const bz = lz + lightCfg.armDx * 3;
+          
+          // Face the road (opposite of light arm direction)
+          const bRot = lightCfg.rot + Math.PI; 
+          
+          // Seat (y=0.95: sidewalk 0.4 + legs 0.5 + seat thickness/2 0.05)
+          mat.compose(pos.set(bx, 0.95, bz), qRot.setFromAxisAngle(new THREE.Vector3(0, 1, 0), bRot), scale.set(1, 1, 1));
+          benchSeatIM.setMatrixAt(benchIdx, mat);
+          
+          // Back (y=1.3)
+          const backDx = Math.sin(bRot) * 0.25;
+          const backDz = Math.cos(bRot) * 0.25;
+          mat.compose(pos.set(bx + backDx, 1.3, bz + backDz), qRot, scale.set(1, 1, 1));
+          benchBackIM.setMatrixAt(benchIdx, mat);
+          
+          // Legs (left and right) (y=0.65)
+          const legDx = Math.cos(bRot) * 0.8;
+          const legDz = -Math.sin(bRot) * 0.8;
+          mat.compose(pos.set(bx + legDx, 0.65, bz + legDz), qRot, scale.set(1, 1, 1));
+          benchLegIM.setMatrixAt(benchLegIdx++, mat);
+          mat.compose(pos.set(bx - legDx, 0.65, bz - legDz), qRot, scale.set(1, 1, 1));
+          benchLegIM.setMatrixAt(benchLegIdx++, mat);
+          
+          // Register interaction point for sitting
+          this.sceneManager.interactables.push({
+            type: 'bench',
+            position: new THREE.Vector3(bx, 0.95, bz), // sit target height
+            rotation: bRot
+          });
+          
+          // Physics collider
+          const benchBody = new CANNON.Body({ mass: 0 });
+          benchBody.addShape(new CANNON.Box(new CANNON.Vec3(1.0, 0.5, 0.4)));
+          benchBody.position.set(bx, 0.9, bz);
+          benchBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), bRot);
+          this.physicsManager.addBody(benchBody);
+          
+          benchIdx++;
+
+          // ── Trash Bins (placed next to benches) ──
+          // Bench direction axis
+          const cosB = Math.cos(bRot);
+          const sinB = Math.sin(bRot);
+          // Place trash bin 1.4m to the side of the bench
+          const binX = bx + cosB * 1.4;
+          const binZ = bz - sinB * 1.4;
+          
+          if (trashBinIdx < maxTrashBins) {
+            mat.compose(pos.set(binX, 0.8, binZ), qRot.setFromAxisAngle(new THREE.Vector3(0, 1, 0), bRot), scale.set(1, 1, 1));
+            trashBinIM.setMatrixAt(trashBinIdx++, mat);
+            
+            // Trash bin physics collider
+            const binBody = new CANNON.Body({ mass: 0 });
+            binBody.addShape(new CANNON.Box(new CANNON.Vec3(0.25, 0.4, 0.25)));
+            binBody.position.set(binX, 0.8, binZ);
+            this.physicsManager.addBody(binBody);
+          }
+
+          // ── Scattered Bottles (near benches/trash bins) ──
+          for (let b = 0; b < 3; b++) {
+            let offsetSide, offsetFront;
+            if (b === 0) {
+              // Bottle 1: Standing near the bench
+              offsetSide = -1.3 + (Math.random() - 0.5) * 0.2;
+              offsetFront = 0.3 + Math.random() * 0.3;
+            } else if (b === 1) {
+              // Bottle 2: Lying down in front of the bench
+              offsetSide = (Math.random() - 0.5) * 1.0;
+              offsetFront = 0.8 + Math.random() * 0.4;
+            } else {
+              // Bottle 3: Lying down near the trash bin
+              offsetSide = 1.7 + (Math.random() - 0.5) * 0.2;
+              offsetFront = 0.1 + Math.random() * 0.3;
+            }
+
+            const botX = bx + offsetSide * cosB - offsetFront * sinB;
+            const botZ = bz - offsetSide * sinB - offsetFront * cosB;
+
+            const isLying = b > 0;
+            let botY, qBot;
+
+            if (isLying) {
+              botY = 0.4 + 0.04; // sidewalk 0.4 + bottle radius 0.04
+              const randRot = Math.random() * Math.PI * 2;
+              const qBase = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, randRot, 0));
+              qBot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), bRot).multiply(qBase);
+            } else {
+              botY = 0.4 + 0.125; // sidewalk 0.4 + half bottle height 0.125
+              qBot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.random() * Math.PI * 2);
+            }
+
+            const useGreen = Math.random() > 0.5;
+            mat.compose(pos.set(botX, botY, botZ), qBot, scale.set(1, 1, 1));
+
+            if (useGreen) {
+              if (bottleGreenIdx < maxBottles) {
+                bottleGreenIM.setMatrixAt(bottleGreenIdx++, mat);
+              }
+            } else {
+              if (bottleBrownIdx < maxBottles) {
+                bottleBrownIM.setMatrixAt(bottleBrownIdx++, mat);
+              }
+            }
+          }
+        }
+
+        // ── Puddles (placed in some road lanes, 60% chance per block) ──
+        if (Math.random() < 0.6 && puddleIdx < maxPuddles) {
+          let pX, pZ;
+          if (Math.random() > 0.5) {
+            // Horizontal road lane (Z offset is near block boundary, e.g. 20m)
+            pX = ox + (Math.random() - 0.5) * 36;
+            pZ = oz + (Math.random() > 0.5 ? 20.0 : -20.0);
+          } else {
+            // Vertical road lane (X offset is near block boundary, e.g. 20m)
+            pX = ox + (Math.random() > 0.5 ? 20.0 : -20.0);
+            pZ = oz + (Math.random() - 0.5) * 36;
+          }
+
+          // Random puddle size (scale X and Y in local space)
+          const scaleX = 0.6 + Math.random() * 1.4;
+          const scaleY = 0.4 + Math.random() * 0.8;
+          const pRotZ = Math.random() * Math.PI * 2;
+
+          // Local Z rotation for puddle orientation
+          const qZ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), pRotZ);
+          // Combine flat-plane rotation (_90) with local Z-rotation
+          const qFinal = _90.clone().multiply(qZ);
+
+          // Place slightly above road (y=0.012)
+          mat.compose(pos.set(pX, 0.012, pZ), qFinal, scale.set(scaleX, scaleY, 1));
+          puddleIM.setMatrixAt(puddleIdx++, mat);
+        }
       }
     }
     
+    // ── Set exact instance counts to prevent drawing uninitialized default instances at origin (0,0,0) ──
+    trunkIM.count       = trIdx;
+    leavesIM.count      = lvIdx;
+    tlPoleIM.count = tlIdx;
+    tlHouseIM.count = tlIdx;
+    slPoleIM.count = slIdx;
+    slArmIM.count = slIdx;
+    slHeadIM.count = slIdx;
+    slBulbIM.count = slIdx;
+    windowFrameIM.count = winIdx;
+    windowIM.count = winIdx;
+    benchSeatIM.count = benchIdx;
+    benchBackIM.count = benchIdx;
+    benchLegIM.count = benchLegIdx;
+    trashBinIM.count = trashBinIdx;
+    bottleGreenIM.count = bottleGreenIdx;
+    bottleBrownIM.count = bottleBrownIdx;
+    puddleIM.count = puddleIdx;
+    bIdx.forEach((count, idx) => { buildIMs[idx].count = count; });
+
     // ── Commit all instance matrices ──
-    roadIM.instanceMatrix.needsUpdate     = true;
-    sidewalkIM.instanceMatrix.needsUpdate = true;
-    trunkIM.instanceMatrix.needsUpdate    = true;
-    leavesIM.instanceMatrix.needsUpdate   = true;
-    tlPoleIM.instanceMatrix.needsUpdate   = true;
-    tlHouseIM.instanceMatrix.needsUpdate  = true;
+    roadIM.instanceMatrix.needsUpdate        = true;
+    sidewalkIM.instanceMatrix.needsUpdate    = true;
+    trunkIM.instanceMatrix.needsUpdate       = true;
+    leavesIM.instanceMatrix.needsUpdate      = true;
+    tlPoleIM.instanceMatrix.needsUpdate      = true;
+    tlHouseIM.instanceMatrix.needsUpdate     = true;
+    slPoleIM.instanceMatrix.needsUpdate      = true;
+    slArmIM.instanceMatrix.needsUpdate       = true;
+    slHeadIM.instanceMatrix.needsUpdate      = true;
+    slBulbIM.instanceMatrix.needsUpdate      = true;
+    windowFrameIM.instanceMatrix.needsUpdate = true;
+    windowIM.instanceMatrix.needsUpdate      = true;
+    trashBinIM.instanceMatrix.needsUpdate    = true;
+    bottleGreenIM.instanceMatrix.needsUpdate = true;
+    bottleBrownIM.instanceMatrix.needsUpdate = true;
+    puddleIM.instanceMatrix.needsUpdate      = true;
     buildIMs.forEach(m => m.instanceMatrix.needsUpdate = true);
   }
   

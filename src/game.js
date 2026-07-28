@@ -22,9 +22,22 @@ export class Game {
     
     // World & entities
     this.city       = new CityGenerator(this.sceneManager, this.physicsManager);
+    this.cameraManager.setBuildingBoxes(this.sceneManager.buildingBoxes);
+    
     this.player     = new Player(this.sceneManager, this.physicsManager, this.cameraManager, this.controlsManager);
     this.npcManager = new NPCManager(this.sceneManager, this.physicsManager);
-    this.uiManager  = new UIManager(this.player);
+    this.uiManager  = new UIManager(this.player, this.sceneManager);
+    
+    // Wire interaction button logic
+    this.uiManager.setInteractAction(() => {
+      if (this.currentInteractable) {
+        if (this.player.state === 'sitting') {
+          this.player.unsit();
+        } else {
+          this.player.sit(this.currentInteractable);
+        }
+      }
+    });
     
     this.loop = this.loop.bind(this);
   }
@@ -48,11 +61,38 @@ export class Game {
     // 3. Camera & Sun follow player
     const camTarget = this.player.mesh.position.clone();
     camTarget.y += 1.0; // look at chest/head level
-    this.cameraManager.update(camTarget);
+    this.cameraManager.update(camTarget, dt);
     
     this.sceneManager.updateSun(this.player.mesh.position);
+    this.sceneManager.updateWeather(dt, this.player.mesh.position);
     
-    // 4. UI
+    // 4. Interaction Proximity Check
+    let closestDist = Infinity;
+    let closestItem = null;
+    
+    if (this.player.state !== 'sitting') {
+      for (const item of this.sceneManager.interactables) {
+        const dist = this.player.mesh.position.distanceTo(item.position);
+        if (dist < 2.5 && dist < closestDist) {
+          closestDist = dist;
+          closestItem = item;
+        }
+      }
+    } else {
+      // Keep reference to bench while sitting so the action button remains visible
+      closestItem = this.currentInteractable;
+    }
+    
+    this.currentInteractable = closestItem;
+    
+    if (this.currentInteractable) {
+      const btnText = this.player.state === 'sitting' ? 'Berdiri' : 'Duduk';
+      this.uiManager.toggleInteractButton(true, btnText);
+    } else {
+      this.uiManager.toggleInteractButton(false);
+    }
+    
+    // 5. UI
     this.uiManager.update();
     
     // 5. Render

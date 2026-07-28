@@ -139,12 +139,42 @@ export class Player {
     const sprinting = this.controlsManager.keys.sprint;
     const speed = sprinting ? this.speed * this.sprintMultiplier : this.speed;
     
-    this.state = moving ? (sprinting ? 'run' : 'walk') : 'idle';
+    // Jump to unsit
+    if (this.state === 'sitting' && (this.controlsManager.keys.jump || moving)) {
+      this.unsit();
+    }
     
-    if (moving) {
+    if (this.state !== 'sitting') {
+      this.state = moving ? (sprinting ? 'run' : 'walk') : 'idle';
+    }
+    
+    if (moving && this.state !== 'sitting') {
       // Compute world-space move direction relative to camera yaw
       this._euler.set(0, this.cameraManager.theta + Math.PI, 0);
       this._moveDir.set(input.x, 0, input.z).applyEuler(this._euler).normalize();
+      
+      // Project move direction along wall normals to slide smoothly along walls without physics jitter
+      const contacts = this.physicsManager.world.contacts;
+      for (let i = 0; i < contacts.length; i++) {
+        const c = contacts[i];
+        let nx = 0, nz = 0;
+        
+        if (c.bi === this.body && Math.abs(c.ni.y) < 0.5) {
+          nx = c.ni.x;
+          nz = c.ni.z;
+        } else if (c.bj === this.body && Math.abs(c.ni.y) < 0.5) {
+          nx = -c.ni.x;
+          nz = -c.ni.z;
+        }
+        
+        if (nx !== 0 || nz !== 0) {
+          const dot = this._moveDir.x * nx + this._moveDir.z * nz;
+          if (dot > 0) {
+            this._moveDir.x -= nx * dot;
+            this._moveDir.z -= nz * dot;
+          }
+        }
+      }
       
       this.body.velocity.x = this._moveDir.x * speed;
       this.body.velocity.z = this._moveDir.z * speed;
@@ -163,23 +193,34 @@ export class Player {
     }
     
     // Jump
-    if (this.controlsManager.keys.jump && this.canJump) {
+    if (this.controlsManager.keys.jump && this.canJump && this.state !== 'sitting') {
       this.body.velocity.y = this.jumpForce;
       this.canJump = false;
       this.controlsManager.keys.jump = false;
     }
     
     // ── SYNC MESH ──
-    // body.position is the foot (ground contact) level.
-    // Mesh was built with feet at y=0 local, so just copy body.position directly.
     this.mesh.position.x = this.body.position.x;
-    this.mesh.position.y = this.body.position.y; // feet align with body
     this.mesh.position.z = this.body.position.z;
+    if (this.state === 'sitting') {
+      this.mesh.position.y = this.body.position.y - 0.60; // Raised slightly from 0.82 to prevent clipping into wood seat
+    } else {
+      this.mesh.position.y = this.body.position.y;
+    }
     
     this.updateAnimation(deltaTime, moving);
   }
   
   updateAnimation(dt, moving) {
+    if (this.state === 'sitting') {
+      // Sitting animation pose: legs bent 90 degrees forward, arms resting
+      this.leftLeg.rotation.x = -Math.PI / 2;
+      this.rightLeg.rotation.x = -Math.PI / 2;
+      this.leftArm.rotation.x = 0;
+      this.rightArm.rotation.x = 0;
+      return;
+    }
+    
     const inAir = Math.abs(this.body.velocity.y) > 1.0;
     
     if (inAir) {
@@ -207,5 +248,41 @@ export class Player {
       this.leftLeg.rotation.x  = 0;
       this.rightLeg.rotation.x = 0;
     }
+  }
+  
+  sit(interactable) {
+    this.state = 'sitting';
+    
+    // Face the opposite direction of the backrest (forward facing)
+    const sitRot = interactable.rotation + Math.PI;
+    
+    // Offset forward (away from backrest) - reduced to 0.1m to keep butt pushed back on the seat
+    const forwardDx = Math.sin(sitRot) * 0.1;
+    const forwardDz = Math.cos(sitRot) * 0.1;
+    
+    // Position physics body safely at seat level (0.95m), above ground to prevent physics glitches
+    this.body.position.set(
+      interactable.position.x + forwardDx,
+      interactable.position.y,
+      interactable.position.z + forwardDz
+    );
+    this.body.velocity.set(0, 0, 0);
+    
+    // Disable physics rotation/movement while sitting
+    this.body.type = CANNON.Body.KINEMATIC;
+    
+    // Rotate character to face forward
+    this.mesh.rotation.y = sitRot;
+  }
+  
+  unsit() {
+    this.state = 'idle';
+    this.body.type = CANNON.Body.DYNAMIC;
+    
+    // Jump slightly to pop off the bench
+    this.body.velocity.y = 5.0;
+    
+    // Reset control flag so they don't immediately jump again if they used jump to unsit
+    this.controlsManager.keys.jump = false;
   }
 }

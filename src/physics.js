@@ -20,9 +20,8 @@ export class PhysicsManager {
     this.world.addContactMaterial(defaultContactMaterial);
     this.world.defaultContactMaterial = defaultContactMaterial;
     
-    // SAP Broadphase is fastest for many mostly-static objects
-    this.world.broadphase = new CANNON.SAPBroadphase(this.world);
-    this.world.broadphase.axisIndex = 1; // Sweep along Y axis
+    // Naive Broadphase is rock-solid and stable for city environments
+    this.world.broadphase = new CANNON.NaiveBroadphase();
   }
   
   addBody(body) {
@@ -30,7 +29,7 @@ export class PhysicsManager {
   }
   
   step(deltaTime) {
-    // Fixed timestep: always step at 60Hz regardless of render rate
-    this.world.fixedStep(1 / 60, deltaTime);
+    // Smooth timestep for high refresh rate monitors (120Hz, 144Hz, 60Hz)
+    this.world.step(1 / 60, deltaTime, 5);
   }
 }

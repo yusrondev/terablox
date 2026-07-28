@@ -11,9 +11,14 @@ document.addEventListener('DOMContentLoaded', () => {
       document.documentElement.requestFullscreen().catch(err => console.log(err));
     }
     
-    // Attempt to lock landscape orientation for mobile
-    if (screen.orientation && screen.orientation.lock) {
-      screen.orientation.lock('landscape').catch(err => console.log(err));
+    // Attempt to lock landscape orientation for mobile (silently ignore on unsupported desktop/devices)
+    if (screen.orientation && typeof screen.orientation.lock === 'function') {
+      try {
+        const promise = screen.orientation.lock('landscape');
+        if (promise && promise.catch) {
+          promise.catch(() => {});
+        }
+      } catch (e) {}
     }
     
     // Hide start screen & show UI

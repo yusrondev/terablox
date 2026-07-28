@@ -106,21 +106,62 @@ export class CameraManager {
     this.domElement.addEventListener('touchcancel', onTouchEnd, { passive: false });
   }
   
-  update(targetPosition) {
-    // Smooth lerp toward player
-    this._target.lerp(targetPosition, 0.15);
+  setBuildingBoxes(buildingBoxes) {
+    this.buildingBoxes = buildingBoxes;
+    this.ray = new THREE.Ray();
+    this.hitPoint = new THREE.Vector3();
+  }
+  
+  update(targetPosition, dt = 0.016) {
+    // Lock camera target 1:1 with player position (eliminates double-vision ghosting and lag)
+    this._target.copy(targetPosition);
     
-    // Convert spherical to Cartesian
+    // Convert spherical coordinates to Cartesian offset
     const sinPhi = Math.sin(this.phi);
     const cosPhi = Math.cos(this.phi);
     
-    this.camera.position.set(
-      this._target.x + this.distance * sinPhi * Math.sin(this.theta),
-      this._target.y + this.distance * cosPhi,
-      this._target.z + this.distance * sinPhi * Math.cos(this.theta)
+    const offset = new THREE.Vector3(
+      this.distance * sinPhi * Math.sin(this.theta),
+      this.distance * cosPhi,
+      this.distance * sinPhi * Math.cos(this.theta)
     );
     
-    // Prevent camera from clipping through the ground
+    let targetDist = this.distance;
+    
+    // Check ray collision against building boxes
+    if (this.buildingBoxes && this.buildingBoxes.length > 0) {
+      const dir = offset.clone().normalize();
+      this.ray.set(this._target, dir);
+      
+      for (const box of this.buildingBoxes) {
+        if (box.containsPoint(this._target)) continue;
+
+        if (this.ray.intersectBox(box, this.hitPoint)) {
+          const hitDist = this._target.distanceTo(this.hitPoint);
+          if (hitDist > 0.2 && hitDist < targetDist) {
+            targetDist = Math.max(0.6, hitDist - 0.5);
+          }
+        }
+      }
+    }
+    
+    // Smoothly interpolate camera distance to eliminate instant distance popping/shaking near building edges
+    if (this.currentDistance === undefined) {
+      this.currentDistance = targetDist;
+    }
+    
+    // Fast zoom-in on wall contact, smooth gradual zoom-out when moving away
+    const distSpeed = targetDist < this.currentDistance ? Math.min(1.0, dt * 30.0) : Math.min(1.0, dt * 8.0);
+    this.currentDistance += (targetDist - this.currentDistance) * distSpeed;
+    
+    const factor = this.currentDistance / this.distance;
+    this.camera.position.set(
+      this._target.x + offset.x * factor,
+      this._target.y + offset.y * factor,
+      this._target.z + offset.z * factor
+    );
+    
+    // Prevent camera from clipping through ground plane
     if (this.camera.position.y < 0.5) {
       this.camera.position.y = 0.5;
     }

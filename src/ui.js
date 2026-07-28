@@ -1,12 +1,58 @@
 export class UIManager {
-  constructor(player) {
+  constructor(player, sceneManager) {
     this.player = player;
+    this.sceneManager = sceneManager;
     
     this.fpsCounter = document.getElementById('fps-counter');
     this.coordsDisplay = document.getElementById('coordinates');
+    this.interactBtn = document.getElementById('btn-interact');
     
     this.frames = 0;
     this.lastTime = performance.now();
+    
+    this.initWeatherButtons();
+    this.initInteractButton();
+  }
+  
+  initInteractButton() {
+    this.interactBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (this.onInteract) {
+        this.onInteract();
+      }
+    });
+  }
+  
+  setInteractAction(callback) {
+    this.onInteract = callback;
+  }
+  
+  toggleInteractButton(visible, text = 'Duduk') {
+    if (visible) {
+      if (this.interactBtn.style.display === 'none') {
+        this.interactBtn.style.display = 'block';
+      }
+      this.interactBtn.innerText = '🪑 ' + text;
+    } else {
+      if (this.interactBtn.style.display !== 'none') {
+        this.interactBtn.style.display = 'none';
+      }
+    }
+  }
+  
+  initWeatherButtons() {
+    const buttons = document.querySelectorAll('.weather-btn');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const weatherType = btn.getAttribute('data-weather');
+        if (weatherType && this.sceneManager && this.sceneManager.weatherManager) {
+          this.sceneManager.weatherManager.setWeather(weatherType);
+          
+          buttons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
   }
   
   update() {

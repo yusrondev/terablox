@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { WeatherManager } from './weather.js';
 
 export class SceneManager {
   constructor() {
@@ -6,12 +7,12 @@ export class SceneManager {
     
     this.scene = new THREE.Scene();
     
-    // Pastel sky color
-    const skyColor = new THREE.Color(0xb8d8ff);
+    // Default sky color (Mendung baseline)
+    const skyColor = new THREE.Color(0x98b2c6);
     this.scene.background = skyColor;
     
-    // Fog — shorter distance to avoid rendering distant objects (performance boost)
-    this.scene.fog = new THREE.Fog(skyColor, 30, 80);
+    // Fog
+    this.scene.fog = new THREE.Fog(skyColor, 30, 85);
     
     // Renderer — Enable antialias and respect device pixel ratio for sharp graphics
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -26,15 +27,22 @@ export class SceneManager {
     
     this.setupLights();
     
+    // Weather Manager & Building bounds
+    this.buildingBoxes = []; // Populated by CityGenerator for camera collision
+    this.interactables = []; // Populated by CityGenerator for interaction (e.g. sitting benches)
+    
+    // Environment & Weather System
+    this.weatherManager = new WeatherManager(this);
+    
     window.addEventListener('resize', this.onWindowResize.bind(this));
   }
   
   setupLights() {
     // Ambient light
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    this.scene.add(ambientLight);
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    this.scene.add(this.ambientLight);
     
-    // Directional light (sun)
+    // Directional light (sun / moon)
     this.directionalLight = new THREE.DirectionalLight(0xfff0cc, 1.2);
     this.directionalLight.castShadow = true;
     
@@ -55,12 +63,67 @@ export class SceneManager {
     
     // Visual Sun Mesh
     const sunGeo = new THREE.SphereGeometry(4, 16, 16);
-    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffddaa });
-    this.sunMesh = new THREE.Mesh(sunGeo, sunMat);
+    this.sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffddaa });
+    this.sunMesh = new THREE.Mesh(sunGeo, this.sunMaterial);
     this.scene.add(this.sunMesh);
     
-    // Sun angle
+    // Sun offset
     this.sunOffset = new THREE.Vector3(30, 60, 30);
+
+    // Street lights material & light pool
+    this.streetLightBulbMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+    this.streetLightPositions = [];
+    this.streetLightPool = [];
+    for (let i = 0; i < 20; i++) {
+      const pLight = new THREE.PointLight(0xfff0b3, 0, 32, 1.4);
+      this.scene.add(pLight);
+      this.streetLightPool.push(pLight);
+    }
+
+    // Building Window Glass Material
+    this.windowMaterial = new THREE.MeshBasicMaterial({ color: 0x25303b });
+  }
+  
+  setStreetLightsIntensity(intensity, playerPos) {
+    // 1. Bulb glow material update (Super bright yellow glow)
+    if (intensity < 0.05) {
+      this.streetLightBulbMaterial.color.setHex(0x333333);
+      this.windowMaterial.color.setHex(0x25303b); // Dark window glass during day
+    } else {
+      const rBulb = Math.min(1.0, 0.3 + intensity * 0.7);
+      const gBulb = Math.min(1.0, 0.3 + intensity * 0.65);
+      const bBulb = Math.min(1.0, 0.3 + intensity * 0.35);
+      this.streetLightBulbMaterial.color.setRGB(rBulb, gBulb, bBulb);
+
+      // Building windows glow brightly at night and during rain
+      const rWin = Math.min(1.0, 0.15 + intensity * 0.83);
+      const gWin = Math.min(1.0, 0.19 + intensity * 0.76);
+      const bWin = Math.min(1.0, 0.23 + intensity * 0.32);
+      this.windowMaterial.color.setRGB(rWin, gWin, bWin);
+    }
+
+    // 2. Point lights pool positioning (High intensity street lights)
+    if (intensity <= 0.02 || !playerPos || this.streetLightPositions.length === 0) {
+      for (const pLight of this.streetLightPool) {
+        pLight.intensity = 0;
+      }
+      return;
+    }
+
+    // Find closest street light positions to player
+    const sorted = [...this.streetLightPositions].sort((a, b) => {
+      return a.distanceToSquared(playerPos) - b.distanceToSquared(playerPos);
+    });
+
+    for (let i = 0; i < this.streetLightPool.length; i++) {
+      const pLight = this.streetLightPool[i];
+      if (i < sorted.length) {
+        pLight.position.copy(sorted[i]);
+        pLight.intensity = 6.5 * intensity;
+      } else {
+        pLight.intensity = 0;
+      }
+    }
   }
   
   updateSun(playerPos) {
@@ -70,6 +133,12 @@ export class SceneManager {
     
     // Move visual sun mesh to light position
     this.sunMesh.position.copy(this.directionalLight.position);
+  }
+
+  updateWeather(dt, playerPos) {
+    if (this.weatherManager) {
+      this.weatherManager.update(dt, playerPos);
+    }
   }
   
   setCamera(camera) {
