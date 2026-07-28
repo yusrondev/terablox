@@ -80,13 +80,19 @@ export class Player {
     
     this.mesh.add(this.leftLeg, this.rightLeg, this.torso, this.leftArm, this.rightArm, this.head);
     
-    // All body parts cast shadows
+    // All body parts cast and receive shadows
     this.leftLeg.children[0].castShadow = true;
+    this.leftLeg.children[0].receiveShadow = true;
     this.rightLeg.children[0].castShadow = true;
+    this.rightLeg.children[0].receiveShadow = true;
     this.leftArm.children[0].castShadow = true;
+    this.leftArm.children[0].receiveShadow = true;
     this.rightArm.children[0].castShadow = true;
+    this.rightArm.children[0].receiveShadow = true;
     this.torso.castShadow = true;
+    this.torso.receiveShadow = true;
     this.head.castShadow = true;
+    this.head.receiveShadow = true;
     
     this.mesh.scale.set(0.5, 0.5, 0.5); // Shrink to human proportions
     
