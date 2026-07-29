@@ -226,7 +226,11 @@ export class MapEditor {
       a.position.set(0, 4.41, 0.51);
       const h = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.6), wireMat);
       h.position.set(0, 4.41, 1.11);
-      g.add(p, a, h);
+      const coneGeo = new THREE.CylinderGeometry(0.22, 2.5, 4.3, 8, 1, true);
+      coneGeo.translate(0, -2.15, 0);
+      const cone = new THREE.Mesh(coneGeo, wireMat);
+      cone.position.set(0, 4.29, 1.11);
+      g.add(p, a, h, cone);
       mesh = g;
     } else if (type === 'bench') {
       const g = new THREE.Group();
@@ -406,7 +410,14 @@ export class MapEditor {
       h.position.set(0, 4.41, 1.11);
       const b = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.45), new THREE.MeshBasicMaterial({ color: 0xffffcc }));
       b.position.set(0, 4.29, 1.11);
-      g.add(p, a, h, b);
+      
+      // Translucent light beam cone
+      const coneGeo = new THREE.CylinderGeometry(0.22, 2.5, 4.3, 8, 1, true);
+      coneGeo.translate(0, -2.15, 0);
+      const cone = new THREE.Mesh(coneGeo, this.game.sceneManager.streetLightConeMaterial);
+      cone.position.set(0, 4.29, 1.11);
+      
+      g.add(p, a, h, b, cone);
       visualMesh = g;
       
       physicsBody = new CANNON.Body({ mass: 0 });
@@ -602,6 +613,14 @@ export class MapEditor {
       });
     }
     
+    // Register night lighting coordinates for Street Light
+    if (type === 'street_light') {
+      const headOffset = new THREE.Vector3(0, 4.29, 1.11);
+      headOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationAngle);
+      const headWorldPos = visualMesh.position.clone().add(headOffset);
+      this.game.sceneManager.streetLightPositions.push(headWorldPos);
+    }
+    
     // Add to placed list
     const placedObj = {
       id: THREE.MathUtils.generateUUID(),
@@ -655,6 +674,17 @@ export class MapEditor {
           this.game.sceneManager.interactables.splice(intIndex, 1);
         }
       }
+      if (obj.type === 'street_light') {
+        const headOffset = new THREE.Vector3(0, 4.29, 1.11);
+        headOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), obj.rotation);
+        const headWorldPos = obj.position.clone().add(headOffset);
+        const slIndex = this.game.sceneManager.streetLightPositions.findIndex(pos => 
+          pos.distanceTo(headWorldPos) < 0.2
+        );
+        if (slIndex !== -1) {
+          this.game.sceneManager.streetLightPositions.splice(slIndex, 1);
+        }
+      }
       this.placedObjects.splice(index, 1);
     }
   }
@@ -701,6 +731,17 @@ export class MapEditor {
             this.game.sceneManager.interactables.splice(intIndex, 1);
           }
         }
+        if (obj.type === 'street_light') {
+          const headOffset = new THREE.Vector3(0, 4.29, 1.11);
+          headOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), obj.rotation);
+          const headWorldPos = obj.position.clone().add(headOffset);
+          const slIndex = this.game.sceneManager.streetLightPositions.findIndex(pos => 
+            pos.distanceTo(headWorldPos) < 0.2
+          );
+          if (slIndex !== -1) {
+            this.game.sceneManager.streetLightPositions.splice(slIndex, 1);
+          }
+        }
         this.placedObjects.splice(index, 1);
         this.deselectObject();
       }
@@ -743,6 +784,21 @@ export class MapEditor {
           );
           if (intItem) {
             intItem.rotation = this.rotationAngle;
+          }
+        }
+        // Update street light position rotation if selected object is a street light
+        if (this.selectedObject.type === 'street_light') {
+          const oldOffset = new THREE.Vector3(0, 4.29, 1.11).applyAxisAngle(new THREE.Vector3(0, 1, 0), prevRotation);
+          const oldHeadWorldPos = this.selectedObject.position.clone().add(oldOffset);
+          
+          const newOffset = new THREE.Vector3(0, 4.29, 1.11).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationAngle);
+          const newHeadWorldPos = this.selectedObject.position.clone().add(newOffset);
+          
+          const slIndex = this.game.sceneManager.streetLightPositions.findIndex(pos => 
+            pos.distanceTo(oldHeadWorldPos) < 0.2
+          );
+          if (slIndex !== -1) {
+            this.game.sceneManager.streetLightPositions[slIndex].copy(newHeadWorldPos);
           }
         }
       }
@@ -895,6 +951,19 @@ export class MapEditor {
           this.game.sceneManager.interactables.splice(intIndex, 1);
         }
       }
+      
+      // Clean up lighting if it was a street light
+      if (obj.type === 'street_light') {
+        const headOffset = new THREE.Vector3(0, 4.29, 1.11);
+        headOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), obj.rotation);
+        const headWorldPos = obj.position.clone().add(headOffset);
+        const slIndex = this.game.sceneManager.streetLightPositions.findIndex(pos => 
+          pos.distanceTo(headWorldPos) < 0.2
+        );
+        if (slIndex !== -1) {
+          this.game.sceneManager.streetLightPositions.splice(slIndex, 1);
+        }
+      }
     });
     this.placedObjects = [];
   }
@@ -948,6 +1017,17 @@ export class MapEditor {
             int.position.distanceTo(new THREE.Vector3(obj.position.x, obj.position.y + 0.6, obj.position.z)) < 0.1
           );
           if (intIndex !== -1) this.game.sceneManager.interactables.splice(intIndex, 1);
+        }
+        if (obj.type === 'street_light') {
+          const headOffset = new THREE.Vector3(0, 4.29, 1.11);
+          headOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), obj.rotation);
+          const headWorldPos = obj.position.clone().add(headOffset);
+          const slIndex = this.game.sceneManager.streetLightPositions.findIndex(pos => 
+            pos.distanceTo(headWorldPos) < 0.2
+          );
+          if (slIndex !== -1) {
+            this.game.sceneManager.streetLightPositions.splice(slIndex, 1);
+          }
         }
         this.placedObjects.splice(index, 1);
         this.deselectObject();
@@ -1003,6 +1083,7 @@ export class MapEditor {
     }
     else if (item.action === 'rotate') {
       const obj = item.object;
+      const oldRotation = obj.rotation;
       obj.mesh.rotation.y = item.prevRotation;
       obj.rotation = item.prevRotation;
       if (obj.body) {
@@ -1013,6 +1094,20 @@ export class MapEditor {
           int.position.distanceTo(new THREE.Vector3(obj.position.x, obj.position.y + 0.6, obj.position.z)) < 0.1
         );
         if (intItem) intItem.rotation = item.prevRotation;
+      }
+      if (obj.type === 'street_light') {
+        const oldOffset = new THREE.Vector3(0, 4.29, 1.11).applyAxisAngle(new THREE.Vector3(0, 1, 0), oldRotation);
+        const oldHeadWorldPos = obj.position.clone().add(oldOffset);
+        
+        const newOffset = new THREE.Vector3(0, 4.29, 1.11).applyAxisAngle(new THREE.Vector3(0, 1, 0), item.prevRotation);
+        const newHeadWorldPos = obj.position.clone().add(newOffset);
+        
+        const slIndex = this.game.sceneManager.streetLightPositions.findIndex(pos => 
+          pos.distanceTo(oldHeadWorldPos) < 0.2
+        );
+        if (slIndex !== -1) {
+          this.game.sceneManager.streetLightPositions[slIndex].copy(newHeadWorldPos);
+        }
       }
     }
   }
