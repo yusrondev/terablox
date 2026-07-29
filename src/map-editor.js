@@ -39,8 +39,10 @@ export class MapEditor {
     this.catalogList = document.getElementById('props-catalog-list');
     this.brushSelector = document.querySelector('.brush-selector');
     this.heightControlGroup = document.getElementById('height-control-group');
+    this.bldHeightWrapper = document.getElementById('bld-height-wrapper');
     this.rangeHeight = document.getElementById('range-bld-height');
     this.lblHeight = document.getElementById('lbl-bld-height');
+    this.inputBldColor = document.getElementById('input-bld-color');
     
     this.btnExport = document.getElementById('btn-export-map');
     this.btnImport = document.getElementById('btn-import-map');
@@ -84,8 +86,11 @@ export class MapEditor {
           this.rotationAngle = 0;
           this.deselectObject();
           
-          if (this.selectedBrush === 'building') {
+          if (this.selectedBrush === 'building' || this.selectedBrush === 'rumah' || this.selectedBrush === 'ruko') {
             this.heightControlGroup.style.display = 'block';
+            if (this.bldHeightWrapper) {
+              this.bldHeightWrapper.style.display = (this.selectedBrush === 'building') ? 'block' : 'none';
+            }
           } else {
             this.heightControlGroup.style.display = 'none';
           }
@@ -103,6 +108,15 @@ export class MapEditor {
         this.lblHeight.textContent = e.target.value;
         if (this.active && this.subMode === 'city' && this.selectedBrush === 'building') {
           this.createGhost('building');
+        }
+      });
+    }
+    
+    // Building color picker
+    if (this.inputBldColor) {
+      this.inputBldColor.addEventListener('input', (e) => {
+        if (this.active && this.subMode === 'city' && ['building', 'rumah', 'ruko'].includes(this.selectedBrush)) {
+          this.createGhost(this.selectedBrush);
         }
       });
     }
@@ -333,12 +347,37 @@ export class MapEditor {
       mesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), wireMat);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.y = 0.01;
-    } else if (type === 'building') {
-      const h = parseFloat(this.rangeHeight.value);
+    } else if (type === 'building' || type === 'rumah' || type === 'ruko') {
       const g = new THREE.Group();
-      const b = new THREE.Mesh(new THREE.BoxGeometry(8, h, 8), wireMat);
-      b.position.y = h / 2;
-      g.add(b);
+      const bldColor = this.inputBldColor ? this.inputBldColor.value : '#ffb7b2';
+      const bWireMat = new THREE.MeshBasicMaterial({ color: bldColor, wireframe: true, transparent: true, opacity: 0.8 });
+      
+      if (type === 'building') {
+        const h = parseFloat(this.rangeHeight.value) || 15;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(8, h, 8), bWireMat);
+        b.position.y = h / 2;
+        g.add(b);
+      } else if (type === 'rumah') {
+        const w = 6;
+        const d = 8;
+        const h = 5;
+        const base = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bWireMat);
+        base.position.y = h / 2;
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(5, 3, 4), bWireMat);
+        roof.rotation.y = Math.PI / 4;
+        roof.position.y = h + 1.5;
+        g.add(base, roof);
+      } else if (type === 'ruko') {
+        const w = 7;
+        const d = 8;
+        const h = 8; // 2 stories
+        const base = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bWireMat);
+        base.position.y = h / 2;
+        const awning = new THREE.Mesh(new THREE.BoxGeometry(w, 0.2, 3), bWireMat);
+        awning.rotation.x = 0.1;
+        awning.position.set(0, 3.5, d/2 + 1.5);
+        g.add(base, awning);
+      }
       mesh = g;
       mesh.position.y = 0;
     }
@@ -423,8 +462,8 @@ export class MapEditor {
     this.placeObject();
   }
   
-  placeObject() {
-    const type = (this.subMode === 'props') ? this.selectedProp : this.selectedBrush;
+  placeObject(forceType = null) {
+    const type = forceType || ((this.subMode === 'props') ? this.selectedProp : this.selectedBrush);
     if (type === 'clear') return;
     
     // Check if tile/position is already occupied (only if snap to grid is active)
@@ -661,78 +700,113 @@ export class MapEditor {
       visualMesh.rotation.x = -Math.PI / 2;
       visualMesh.position.y = 0.01;
     } 
-    else if (type === 'building') {
-      // Drop custom building with windows
-      const h = parseFloat(this.rangeHeight.value);
-      const bColor = this.game.city.colors.buildings[Math.floor(Math.random() * this.game.city.colors.buildings.length)];
-      
+    else if (type === 'building' || type === 'rumah' || type === 'ruko') {
       const g = new THREE.Group();
-      const bodyMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(8, h, 8),
-        new THREE.MeshLambertMaterial({ color: bColor })
-      );
-      bodyMesh.position.y = h / 2;
-      bodyMesh.castShadow = true;
-      bodyMesh.receiveShadow = true;
-      g.add(bodyMesh);
+      const bColorStr = this.inputBldColor ? this.inputBldColor.value : '#ffb7b2';
+      const bColor = new THREE.Color(bColorStr);
+      const bMat = new THREE.MeshLambertMaterial({ color: bColor });
       
-      // Add windows (mirroring default procedural city architecture)
-      const floorSpacing = 2.8;
-      const startY = 2.0;
-      const endY = h - 1.2;
+      g.userData = { customColor: bColorStr };
       
-      const windowFrameGeo = new THREE.BoxGeometry(0.95, 1.35, 0.04);
-      const windowGeo      = new THREE.BoxGeometry(0.85, 1.25, 0.06);
-      
-      const frameMat = new THREE.MeshLambertMaterial({ color: 0x1a1d20 });
-      const winMat   = this.game.sceneManager.windowMaterial; // Emissive yellow glass material
-      
-      const cols = 3; // Fits nicely on 8m width (x = -2.0, 0.0, 2.0)
-      for (let wy = startY; wy <= endY; wy += floorSpacing) {
-        for (let col = 0; col < cols; col++) {
-          const wOffset = -2.0 + col * 2.0;
-          
-          // Front (+Z = 4.0)
-          const fFrame = new THREE.Mesh(windowFrameGeo, frameMat);
-          fFrame.position.set(wOffset, wy, 4.02);
-          const fWin = new THREE.Mesh(windowGeo, winMat);
-          fWin.position.set(wOffset, wy, 4.03);
-          g.add(fFrame, fWin);
-          
-          // Back (-Z = -4.0)
-          const bFrame = new THREE.Mesh(windowFrameGeo, frameMat);
-          bFrame.position.set(wOffset, wy, -4.02);
-          bFrame.rotation.y = Math.PI;
-          const bWin = new THREE.Mesh(windowGeo, winMat);
-          bWin.position.set(wOffset, wy, -4.03);
-          bWin.rotation.y = Math.PI;
-          g.add(bFrame, bWin);
-          
-          // Right (+X = 4.0)
-          const rFrame = new THREE.Mesh(windowFrameGeo, frameMat);
-          rFrame.position.set(4.02, wy, wOffset);
-          rFrame.rotation.y = Math.PI / 2;
-          const rWin = new THREE.Mesh(windowGeo, winMat);
-          rWin.position.set(4.03, wy, wOffset);
-          rWin.rotation.y = Math.PI / 2;
-          g.add(rFrame, rWin);
-          
-          // Left (-X = -4.0)
-          const lFrame = new THREE.Mesh(windowFrameGeo, frameMat);
-          lFrame.position.set(-4.02, wy, wOffset);
-          lFrame.rotation.y = -Math.PI / 2;
-          const lWin = new THREE.Mesh(windowGeo, winMat);
-          lWin.position.set(-4.03, wy, wOffset);
-          lWin.rotation.y = -Math.PI / 2;
-          g.add(lFrame, lWin);
+      if (type === 'building') {
+        const h = parseFloat(this.rangeHeight.value) || 15;
+        g.userData.height = h;
+        
+        const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(8, h, 8), bMat);
+        bodyMesh.position.y = h / 2;
+        bodyMesh.castShadow = true;
+        bodyMesh.receiveShadow = true;
+        g.add(bodyMesh);
+        
+        const floorSpacing = 2.8;
+        const startY = 2.0;
+        const endY = h - 1.2;
+        const windowFrameGeo = new THREE.BoxGeometry(0.95, 1.35, 0.04);
+        const windowGeo      = new THREE.BoxGeometry(0.85, 1.25, 0.06);
+        const frameMat = new THREE.MeshLambertMaterial({ color: 0x1a1d20 });
+        const winMat   = this.game.sceneManager.windowMaterial;
+        
+        for (let wy = startY; wy <= endY; wy += floorSpacing) {
+          for (let col = 0; col < 3; col++) {
+            const wOffset = -2.0 + col * 2.0;
+            const fFrame = new THREE.Mesh(windowFrameGeo, frameMat); fFrame.position.set(wOffset, wy, 4.02);
+            const fWin = new THREE.Mesh(windowGeo, winMat); fWin.position.set(wOffset, wy, 4.03);
+            const bFrame = new THREE.Mesh(windowFrameGeo, frameMat); bFrame.position.set(wOffset, wy, -4.02); bFrame.rotation.y = Math.PI;
+            const bWin = new THREE.Mesh(windowGeo, winMat); bWin.position.set(wOffset, wy, -4.03); bWin.rotation.y = Math.PI;
+            const rFrame = new THREE.Mesh(windowFrameGeo, frameMat); rFrame.position.set(4.02, wy, wOffset); rFrame.rotation.y = Math.PI / 2;
+            const rWin = new THREE.Mesh(windowGeo, winMat); rWin.position.set(4.03, wy, wOffset); rWin.rotation.y = Math.PI / 2;
+            const lFrame = new THREE.Mesh(windowFrameGeo, frameMat); lFrame.position.set(-4.02, wy, wOffset); lFrame.rotation.y = -Math.PI / 2;
+            const lWin = new THREE.Mesh(windowGeo, winMat); lWin.position.set(-4.03, wy, wOffset); lWin.rotation.y = -Math.PI / 2;
+            g.add(fFrame, fWin, bFrame, bWin, rFrame, rWin, lFrame, lWin);
+          }
         }
+        
+        physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
+        physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(4.0, h / 2, 4.0)), new CANNON.Vec3(0, h / 2, 0));
+        
+      } else if (type === 'rumah') {
+        const w = 6;
+        const d = 8;
+        const h = 5;
+        
+        const base = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bMat);
+        base.position.y = h / 2;
+        base.castShadow = true;
+        base.receiveShadow = true;
+        
+        const roofColor = new THREE.Color('#d35400');
+        const roofMat = new THREE.MeshLambertMaterial({ color: roofColor });
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(5, 3, 4), roofMat);
+        roof.rotation.y = Math.PI / 4;
+        roof.position.y = h + 1.5;
+        roof.castShadow = true;
+        
+        const door = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 0.1), new THREE.MeshLambertMaterial({ color: 0x8e44ad }));
+        door.position.set(0, 1.1, d/2 + 0.05);
+        
+        const winGeo = new THREE.BoxGeometry(1.2, 1.2, 0.1);
+        const winMat = this.game.sceneManager.windowMaterial;
+        const win1 = new THREE.Mesh(winGeo, winMat); win1.position.set(-1.8, 2, d/2 + 0.05);
+        const win2 = new THREE.Mesh(winGeo, winMat); win2.position.set(1.8, 2, d/2 + 0.05);
+        
+        g.add(base, roof, door, win1, win2);
+        
+        physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
+        physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2)), new CANNON.Vec3(0, h/2, 0));
+        
+      } else if (type === 'ruko') {
+        const w = 7;
+        const d = 8;
+        const h = 8;
+        
+        const base = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bMat);
+        base.position.y = h / 2;
+        base.castShadow = true;
+        base.receiveShadow = true;
+        
+        const awningMat = new THREE.MeshLambertMaterial({ color: 0x2980b9 });
+        const awning = new THREE.Mesh(new THREE.BoxGeometry(w, 0.2, 3), awningMat);
+        awning.rotation.x = 0.1;
+        awning.position.set(0, 3.5, d/2 + 1.5);
+        awning.castShadow = true;
+        
+        const glassGeo = new THREE.BoxGeometry(w - 1, 3, 0.1);
+        const winMat = this.game.sceneManager.windowMaterial;
+        const glass = new THREE.Mesh(glassGeo, winMat);
+        glass.position.set(0, 1.5, d/2 + 0.05);
+        
+        const win2Geo = new THREE.BoxGeometry(2, 2, 0.1);
+        const win2a = new THREE.Mesh(win2Geo, winMat); win2a.position.set(-1.5, 6, d/2 + 0.05);
+        const win2b = new THREE.Mesh(win2Geo, winMat); win2b.position.set(1.5, 6, d/2 + 0.05);
+        
+        g.add(base, awning, glass, win2a, win2b);
+        
+        physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
+        physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2)), new CANNON.Vec3(0, h/2, 0));
       }
       
       visualMesh = g;
       visualMesh.position.y = 0;
-      
-      physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
-      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(4.0, h / 2, 4.0)));
     }
     
     // Set position and rotation
@@ -757,7 +831,7 @@ export class MapEditor {
     // Set up physics body position if exists
     if (physicsBody) {
       let py = 0.05;
-      if (type === 'building') py = visualMesh.position.y;
+      if (type === 'building' || type === 'rumah' || type === 'ruko') py = visualMesh.position.y;
       else if (type === 'hydrant') py = 0.5;
       else if (type === 'lamp') py = 1.75;
       else if (type === 'street_light') py = 2.25;
@@ -800,7 +874,7 @@ export class MapEditor {
       position: visualMesh.position.clone(),
       rotation: this.rotationAngle,
       height: (type === 'building') ? parseFloat(this.rangeHeight.value) : null,
-      color: (type === 'tile') ? this.selectedTileColor : null
+      color: (type === 'tile') ? this.selectedTileColor : (['building', 'rumah', 'ruko'].includes(type) ? visualMesh.userData.customColor : null)
     };
     
     this.placedObjects.push(placedObj);
@@ -1041,7 +1115,8 @@ export class MapEditor {
       type: obj.type,
       position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
       rotation: obj.rotation,
-      height: obj.height
+      height: obj.height,
+      color: obj.color
     }));
     
     const json = JSON.stringify(mapData, null, 2);
@@ -1080,9 +1155,15 @@ export class MapEditor {
           this.rangeHeight.value = data.height;
           this.lblHeight.textContent = data.height;
         }
+        if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
+          this.inputBldColor.value = data.color;
+        }
+        if (data.type === 'tile' && data.color) {
+          this.selectedTileColor = data.color;
+        }
         
         // Instantiate real objects
-        this.placeObject();
+        this.placeObject(data.type);
       });
       
       alert('Data Map berhasil di-Import!');
@@ -1174,10 +1255,13 @@ export class MapEditor {
         if (this.rangeHeight) this.rangeHeight.value = data.height;
         if (this.lblHeight) this.lblHeight.textContent = data.height;
       }
+      if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
+        this.inputBldColor.value = data.color;
+      }
       if (data.type === 'tile' && data.color) {
         this.selectedTileColor = data.color;
       }
-      this.placeObject();
+      this.placeObject(data.type);
     });
 
     if (needDestroyGhost && this.ghostMesh) {

@@ -170,12 +170,23 @@
             <div class="brush-selector">
               <button class="brush-btn active" data-brush="road">Paint Road</button>
               <button class="brush-btn" data-brush="road_roundabout">Paint Roundabout</button>
-              <button class="brush-btn" data-brush="building">Drop Building</button>
+              <button class="brush-btn" data-brush="building">Drop Gedung</button>
+              <button class="brush-btn" data-brush="rumah">Drop Rumah</button>
+              <button class="brush-btn" data-brush="ruko">Drop Ruko</button>
               <button class="brush-btn" data-brush="clear">Erase Tile</button>
             </div>
             <div class="building-height-control" id="height-control-group" style="display: none; margin-top: 10px;">
-              <label>Building Height: <span id="lbl-bld-height">15</span>m</label>
-              <input type="range" id="range-bld-height" min="8" max="40" value="15" style="width: 100%;">
+              <div id="bld-height-wrapper">
+                <label>Building Height: <span id="lbl-bld-height">15</span>m</label>
+                <input type="range" id="range-bld-height" min="8" max="40" value="15" style="width: 100%;">
+              </div>
+              <div style="display: flex; align-items: center; margin-top: 10px; justify-content: space-between;">
+                <label style="margin: 0;">Building Color:</label>
+                <input type="color" id="input-bld-color" value="#ffb7b2" style="background: none; border: none; outline: none; cursor: pointer; height: 30px; border-radius: 4px;">
+              </div>
+              <div style="margin-top: 8px; font-size: 11px; color: #a1b0be; text-align: center;">
+                💡 Tip: Tekan tombol "R" di keyboard untuk merotasi bangunan.
+              </div>
             </div>
              <div class="map-io-group">
                <button id="btn-save-map" class="editor-action-btn">Save Map to Studio</button>
