@@ -266,6 +266,48 @@ export class MapEditor {
     } else if (type === 'hydrant') {
       mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 8), wireMat);
       mesh.position.y = 0.5;
+    } else if (type === 'pine_tree') {
+      const g = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.8, 0.35), wireMat);
+      trunk.position.y = 0.9;
+      g.add(trunk);
+      for (let i = 0; i < 3; i++) {
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(1.2 - i * 0.3, 1.2, 4), wireMat);
+        cone.position.y = 1.8 + i * 0.9;
+        g.add(cone);
+      }
+      mesh = g;
+    } else if (type === 'sign_no_parking') {
+      const g = new THREE.Group();
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.5, 0.1), wireMat);
+      pole.position.y = 1.25;
+      const board = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.04), wireMat);
+      board.position.set(0, 2.2, 0.06);
+      g.add(pole, board);
+      mesh = g;
+    } else if (type === 'fountain') {
+      const g = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.0, 0.5, 8), wireMat);
+      base.position.y = 0.25;
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.5, 8), wireMat);
+      pillar.position.y = 1.0;
+      const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.0, 0.3, 8), wireMat);
+      upper.position.y = 1.6;
+      
+      // Water drops placeholders
+      const waterDrops = [];
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const drop = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.15), wireMat);
+        drop.position.set(Math.cos(angle) * 0.7, 1.3, Math.sin(angle) * 0.7);
+        drop.rotation.x = 0.3;
+        drop.rotation.y = angle;
+        g.add(drop);
+        waterDrops.push(drop);
+      }
+      g.add(base, pillar, upper);
+      g.userData = { waterDrops: waterDrops, timeOffset: 0 };
+      mesh = g;
     } else if (type === 'grass') {
       const g = new THREE.Group();
       const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.3), wireMat);
@@ -500,11 +542,115 @@ export class MapEditor {
       physicsBody = new CANNON.Body({ mass: 0 });
       physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(0.9, 0.1, 0.9)));
     }
-    else if (type === 'road') {
-      // Paint road tile (uses centered cross road texture)
+    else if (type === 'pine_tree') {
+      const g = new THREE.Group();
+      const brownMat = new THREE.MeshLambertMaterial({ color: 0x8b5a2b });
+      const greenMat = new THREE.MeshLambertMaterial({ color: 0x2e7d32 }); // Dark pine green
+      
+      const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.8, 0.35), brownMat);
+      trunk.position.y = 0.9;
+      trunk.castShadow = true;
+      trunk.receiveShadow = true;
+      g.add(trunk);
+      
+      for (let i = 0; i < 3; i++) {
+        const coneGeo = new THREE.ConeGeometry(1.2 - i * 0.3, 1.2, 4); // 4-sided blocky pyramids
+        const cone = new THREE.Mesh(coneGeo, greenMat);
+        cone.position.y = 1.8 + i * 0.9;
+        cone.castShadow = true;
+        cone.receiveShadow = true;
+        g.add(cone);
+      }
+      visualMesh = g;
+      
+      physicsBody = new CANNON.Body({ mass: 0 });
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(0.18, 0.9, 0.18)));
+    }
+    else if (type === 'sign_no_parking') {
+      const g = new THREE.Group();
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.5, 0.1), darkGrey);
+      pole.position.y = 1.25;
+      pole.castShadow = true;
+      g.add(pole);
+      
+      const signBoard = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.6, 0.04),
+        new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createNoParkingTexture() })
+      );
+      signBoard.position.set(0, 2.2, 0.06);
+      signBoard.castShadow = true;
+      g.add(signBoard);
+      visualMesh = g;
+      
+      physicsBody = new CANNON.Body({ mass: 0 });
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(0.05, 1.25, 0.05)));
+    }
+    else if (type === 'fountain') {
+      const g = new THREE.Group();
+      const stoneMat = new THREE.MeshLambertMaterial({ color: 0x7f8c8d });
+      const waterMat = new THREE.MeshBasicMaterial({ color: 0x00a8ff, transparent: true, opacity: 0.8 });
+      
+      // Lower basin
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.0, 0.5, 8), stoneMat);
+      base.position.y = 0.25;
+      base.castShadow = true;
+      base.receiveShadow = true;
+      g.add(base);
+      
+      // Water inside lower basin
+      const waterLower = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.7, 0.1, 8), waterMat);
+      waterLower.position.y = 0.45;
+      g.add(waterLower);
+      
+      // Center pillar
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.5, 8), stoneMat);
+      pillar.position.y = 1.0;
+      pillar.castShadow = true;
+      g.add(pillar);
+      
+      // Upper basin
+      const upperBase = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.0, 0.3, 8), stoneMat);
+      upperBase.position.y = 1.6;
+      upperBase.castShadow = true;
+      g.add(upperBase);
+      
+      // Water in upper basin
+      const waterUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.08, 8), waterMat);
+      waterUpper.position.y = 1.72;
+      g.add(waterUpper);
+      
+      // Shape water jets/splashes (8 blocky drops cascading down)
+      const waterDrops = [];
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const dropGeo = new THREE.BoxGeometry(0.15, 0.6, 0.15);
+        const drop = new THREE.Mesh(dropGeo, new THREE.MeshBasicMaterial({ color: 0x00d2d3, transparent: true, opacity: 0.7 }));
+        
+        const x = Math.cos(angle) * 0.7;
+        const z = Math.sin(angle) * 0.7;
+        drop.position.set(x, 1.3, z);
+        drop.rotation.x = 0.3;
+        drop.rotation.y = angle;
+        g.add(drop);
+        waterDrops.push(drop);
+      }
+      
+      g.userData = {
+        waterDrops: waterDrops,
+        timeOffset: Math.random() * 100
+      };
+      visualMesh = g;
+      
+      physicsBody = new CANNON.Body({ mass: 0 });
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(1.8, 0.25, 1.8)));
+    }
+    else if (type === 'road' || type === 'road_roundabout') {
       visualMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(10, 10),
-        new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createRoadTexture() })
+        new THREE.MeshLambertMaterial({ 
+          color: 0xffffff, 
+          map: type === 'road' ? this.createRoadTexture() : this.createRoundaboutTexture() 
+        })
       );
       visualMesh.rotation.x = -Math.PI / 2;
       visualMesh.position.y = 0.01;
@@ -1075,7 +1221,7 @@ export class MapEditor {
       this.ghostMesh.position.copy(item.position);
       
       const origSubMode = this.subMode;
-      if (item.type === 'building' || item.type === 'road') {
+      if (item.type === 'building' || item.type === 'road' || item.type === 'road_roundabout') {
         this.subMode = 'city';
         this.selectedBrush = item.type;
       } else {
@@ -1161,5 +1307,153 @@ export class MapEditor {
       texture.anisotropy = this.game.sceneManager.renderer.capabilities.getMaxAnisotropy();
     }
     return texture;
+  }
+
+  createRoundaboutTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Asphalt base
+    ctx.fillStyle = '#22252a';
+    ctx.fillRect(0, 0, 512, 512);
+    
+    // Noise
+    for (let i = 0; i < 8000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#1a1d21' : '#2a2e35';
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+    }
+    
+    // Central Grass Island
+    const grassColor = (this.game.city && this.game.city.colors) ? this.game.city.colors.grass : '#a8d48a';
+    ctx.beginPath();
+    ctx.arc(256, 256, 120, 0, Math.PI * 2);
+    ctx.fillStyle = grassColor;
+    ctx.fill();
+    
+    // Inner curb line (grey/white blocks pattern)
+    ctx.beginPath();
+    ctx.arc(256, 256, 120, 0, Math.PI * 2);
+    ctx.strokeStyle = '#dcdde1';
+    ctx.lineWidth = 14;
+    ctx.stroke();
+
+    // Subtle dark line border
+    ctx.beginPath();
+    ctx.arc(256, 256, 127, 0, Math.PI * 2);
+    ctx.strokeStyle = '#1e252b';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    
+    // Outer border curb lines to round off corners
+    ctx.fillStyle = grassColor;
+    const corners = [
+      [0, 0, 0, 100, 100, 0],
+      [512, 0, 512, 100, 412, 0],
+      [0, 512, 0, 412, 100, 512],
+      [512, 512, 512, 412, 412, 512]
+    ];
+    for (const [x, y, tx, ty, bx, by] of corners) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(tx, ty);
+      ctx.arcTo(tx, ty, bx, by, 90);
+      ctx.lineTo(x, y);
+      ctx.fill();
+      
+      // Draw outer curb lines
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.arcTo(tx, ty, bx, by, 90);
+      ctx.strokeStyle = '#dcdde1';
+      ctx.lineWidth = 8;
+      ctx.stroke();
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    if (this.game.sceneManager.renderer) {
+      texture.anisotropy = this.game.sceneManager.renderer.capabilities.getMaxAnisotropy();
+    }
+    return texture;
+  }
+
+  createNoParkingTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 128, 128);
+    
+    // Blue inner circle
+    ctx.beginPath();
+    ctx.arc(64, 64, 52, 0, Math.PI * 2);
+    ctx.fillStyle = '#1e3799';
+    ctx.fill();
+    
+    // Red outer ring border
+    ctx.beginPath();
+    ctx.arc(64, 64, 52, 0, Math.PI * 2);
+    ctx.strokeStyle = '#eb2f06';
+    ctx.lineWidth = 12;
+    ctx.stroke();
+    
+    // "P" letter
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 68px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('P', 64, 64);
+    
+    // Red diagonal strike line
+    ctx.beginPath();
+    ctx.moveTo(28, 28);
+    ctx.lineTo(100, 100);
+    ctx.strokeStyle = '#eb2f06';
+    ctx.lineWidth = 12;
+    ctx.stroke();
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    return texture;
+  }
+
+  animate(dt) {
+    if (!dt) return;
+    
+    // Animate fountain water jets
+    this.placedObjects.forEach(obj => {
+      if (obj.type === 'fountain' && obj.mesh && obj.mesh.userData && obj.mesh.userData.waterDrops) {
+        const data = obj.mesh.userData;
+        data.timeOffset += dt * 6;
+        
+        data.waterDrops.forEach((drop, idx) => {
+          const wave = Math.sin(data.timeOffset + idx * 1.5);
+          // Rise and fall animation
+          drop.position.y = 1.35 + wave * 0.16;
+          // Pulsing volume animation
+          const sc = 0.85 + wave * 0.25;
+          drop.scale.set(sc, sc, sc);
+        });
+      }
+    });
+
+    // Animate active ghost if it's a fountain
+    if (this.ghostMesh && this.ghostMesh.userData && this.ghostMesh.userData.waterDrops) {
+      const data = this.ghostMesh.userData;
+      if (!data.timeOffset) data.timeOffset = 0;
+      data.timeOffset += dt * 6;
+      
+      data.waterDrops.forEach((drop, idx) => {
+        const wave = Math.sin(data.timeOffset + idx * 1.5);
+        drop.position.y = 1.35 + wave * 0.16;
+        const sc = 0.85 + wave * 0.25;
+        drop.scale.set(sc, sc, sc);
+      });
+    }
   }
 }

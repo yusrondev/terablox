@@ -66,6 +66,11 @@ export class Game {
     // Delta time in seconds, capped so physics don't explode if tab was backgrounded
     const dt = Math.min((now - this.prevTime) / 1000, 0.05);
     this.prevTime = now;
+
+    // Update map editor animatable assets (e.g. fountains)
+    if (this.editorManager && this.editorManager.mapEditor) {
+      this.editorManager.mapEditor.animate(dt);
+    }
     
     const isEditing = this.editorManager && this.editorManager.activeMode === 'editor';
     
