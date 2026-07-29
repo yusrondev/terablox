@@ -22,7 +22,7 @@ export class Game {
     this.sceneManager.setCamera(this.cameraManager);
     
     // World & entities
-    const isCustomMap = !!options.mapData;
+    const isCustomMap = !!options.mapData || options.mode === 'editor';
     this.city       = new CityGenerator(this.sceneManager, this.physicsManager, { onlyGround: isCustomMap });
     this.cameraManager.setBuildingBoxes(this.sceneManager.buildingBoxes);
     
@@ -44,7 +44,7 @@ export class Game {
     this.editorManager = new EditorManager(this);
     
     // Load custom map data if provided
-    if (isCustomMap) {
+    if (options.mapData) {
       this.editorManager.mapEditor.loadMapData(options.mapData);
     }
     
