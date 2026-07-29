@@ -175,7 +175,7 @@ export class MapEditor {
       this.btnSaveMap.addEventListener('click', () => {
         const name = prompt('Masukkan Nama Map:');
         if (name && name.trim()) {
-          this.saveMapToLocalStorage(name.trim());
+          this.saveMapToServer(name.trim());
         }
       });
     }
@@ -1385,6 +1385,8 @@ export class MapEditor {
       action: 'place',
       object: placedObj
     });
+
+    this.rebuildCameraBuildingBoxes();
   }
   
   eraseObjectAt(pos) {
@@ -1432,6 +1434,7 @@ export class MapEditor {
       }
       this.placedObjects.splice(index, 1);
     }
+    this.rebuildCameraBuildingBoxes();
   }
   
   raycastErase(e) {
@@ -1491,6 +1494,7 @@ export class MapEditor {
         this.deselectObject();
       }
     }
+    this.rebuildCameraBuildingBoxes();
   }
   
   onKeyDown(e) {
@@ -1716,30 +1720,54 @@ export class MapEditor {
     }
   }
 
-  saveMapToLocalStorage(name) {
-    const savedMaps = JSON.parse(localStorage.getItem('terablox_saved_maps') || '{}');
-    if (savedMaps[name]) {
-      if (!confirm(`Map dengan nama "${name}" sudah ada. Apakah Anda ingin menimpanya?`)) {
-        return;
+  async saveMapToServer(name) {
+    try {
+      let savedMaps = {};
+      const res = await fetch('/api/load-maps?t=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) {
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          savedMaps = await res.json();
+        } else {
+          throw new Error("API tidak merespon dengan JSON. Silakan restart Vite dev server Anda (stop terminal dan jalankan `npm run dev` lagi) karena konfigurasi vite.config.js baru saja diubah.");
+        }
       }
+
+      if (savedMaps[name]) {
+        if (!confirm(`Map dengan nama "${name}" sudah ada. Apakah Anda ingin menimpanya?`)) {
+          return;
+        }
+      }
+
+      const mapData = {
+        mapSize: this.game.city ? this.game.city.citySize : 2,
+        placements: this.placedObjects.map(obj => ({
+          type: obj.type,
+          position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+          rotation: obj.rotation,
+          height: obj.height,
+          color: obj.color,
+          tileScale: obj.tileScale
+        })),
+        customAssets: this.customAssets
+      };
+
+      savedMaps[name] = mapData;
+      
+      const saveRes = await fetch('/api/save-maps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(savedMaps)
+      });
+      
+      if (saveRes.ok) {
+        alert(`Map "${name}" berhasil disimpan ke Project!`);
+      } else {
+        alert(`Gagal menyimpan map: Server error`);
+      }
+    } catch(err) {
+      alert(`Gagal menyimpan map: ` + err.message);
     }
-
-    const mapData = {
-      mapSize: this.game.city ? this.game.city.citySize : 2,
-      placements: this.placedObjects.map(obj => ({
-        type: obj.type,
-        position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
-        rotation: obj.rotation,
-        height: obj.height,
-        color: obj.color,
-        tileScale: obj.tileScale
-      })),
-      customAssets: this.customAssets
-    };
-
-    savedMaps[name] = mapData;
-    localStorage.setItem('terablox_saved_maps', JSON.stringify(savedMaps));
-    alert(`Map "${name}" berhasil disimpan ke Studio!`);
   }
 
   clearPlacements() {
@@ -1771,6 +1799,56 @@ export class MapEditor {
       }
     });
     this.placedObjects = [];
+    this.rebuildCameraBuildingBoxes();
+  }
+
+  rebuildCameraBuildingBoxes() {
+    if (!this.game || !this.game.sceneManager) return;
+    this.game.sceneManager.buildingBoxes.length = 0;
+    this.placedObjects.forEach(obj => {
+      let w = 0, h = 0, d = 0;
+      let isBuilding = false;
+      
+      if (obj.type === 'building') {
+        w = 8;
+        h = obj.height || 15;
+        d = 8;
+        isBuilding = true;
+      } else if (obj.type === 'rumah') {
+        w = 6;
+        h = 8;
+        d = 8;
+        isBuilding = true;
+      } else if (obj.type === 'ruko') {
+        w = 7;
+        h = 8;
+        d = 8;
+        isBuilding = true;
+      } else if (obj.type.startsWith('custom_')) {
+        const assetId = obj.type.substring(7);
+        const asset = this.customAssets.find(a => a.id === assetId);
+        if (asset && asset.category === 'building') {
+          w = 8; h = 10; d = 8; // fallback
+          if (obj.mesh) {
+            const box = new THREE.Box3().setFromObject(obj.mesh);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            w = size.x || 8;
+            h = size.y || 10;
+            d = size.z || 8;
+          }
+          isBuilding = true;
+        }
+      }
+      
+      if (isBuilding) {
+        const bldBox = new THREE.Box3(
+          new THREE.Vector3(obj.position.x - w / 2, 0.4, obj.position.z - d / 2),
+          new THREE.Vector3(obj.position.x + w / 2, 0.4 + h, obj.position.z + d / 2)
+        );
+        this.game.sceneManager.buildingBoxes.push(bldBox);
+      }
+    });
   }
 
   loadMapData(mapData) {
@@ -1835,6 +1913,8 @@ export class MapEditor {
     
     // Clear history stack upon initial load to prevent undoing map initialization
     this.history = [];
+
+    this.rebuildCameraBuildingBoxes();
   }
 
   undo() {
@@ -1946,6 +2026,7 @@ export class MapEditor {
         }
       }
     }
+    this.rebuildCameraBuildingBoxes();
   }
 
   createRoadTexture() {

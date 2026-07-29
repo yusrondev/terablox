@@ -161,18 +161,52 @@ export class Player {
       }
       
       const heading = new THREE.Vector3(0, 0, 1).applyQuaternion(this.currentVehicle.mesh.quaternion);
-      const driveSpeed = 16.0; // max driving speed
+      
+      if (this.currentVehicle.currentSpeed === undefined) {
+        this.currentVehicle.currentSpeed = 0;
+      }
+      
+      const maxDriveSpeed = 16.0;
+      const acceleration = 12.0; // speed units per second
+      const deceleration = 3.5;  // natural drift speed units per second when no input
+      const braking = 25.0;      // brake deceleration
+      
       let moveDir = 0;
       if (this.controlsManager.keys.forward) moveDir = 1;
       if (this.controlsManager.keys.backward) moveDir = -1;
       
-      const targetVel = heading.multiplyScalar(moveDir * driveSpeed);
+      if (moveDir > 0) {
+        this.currentVehicle.currentSpeed += acceleration * deltaTime;
+        if (this.currentVehicle.currentSpeed > maxDriveSpeed) {
+          this.currentVehicle.currentSpeed = maxDriveSpeed;
+        }
+      } else if (moveDir < 0) {
+        if (this.currentVehicle.currentSpeed > 0) {
+          this.currentVehicle.currentSpeed -= braking * deltaTime;
+          if (this.currentVehicle.currentSpeed < 0) this.currentVehicle.currentSpeed = 0;
+        } else {
+          this.currentVehicle.currentSpeed -= acceleration * 0.5 * deltaTime;
+          if (this.currentVehicle.currentSpeed < -maxDriveSpeed / 2) {
+            this.currentVehicle.currentSpeed = -maxDriveSpeed / 2;
+          }
+        }
+      } else {
+        if (this.currentVehicle.currentSpeed > 0) {
+          this.currentVehicle.currentSpeed -= deceleration * deltaTime;
+          if (this.currentVehicle.currentSpeed < 0) this.currentVehicle.currentSpeed = 0;
+        } else if (this.currentVehicle.currentSpeed < 0) {
+          this.currentVehicle.currentSpeed += deceleration * deltaTime;
+          if (this.currentVehicle.currentSpeed > 0) this.currentVehicle.currentSpeed = 0;
+        }
+      }
+      
+      const targetVel = heading.multiplyScalar(this.currentVehicle.currentSpeed);
       this.currentVehicle.body.velocity.x = targetVel.x;
       this.currentVehicle.body.velocity.z = targetVel.z;
       
-      // A/D steering or joystick X-axis steering (only allowed if moving/gassed)
+      // A/D steering or joystick X-axis steering (only allowed if moving/rolling)
       let steerDir = 0;
-      if (moveDir !== 0) {
+      if (this.currentVehicle.currentSpeed !== 0) {
         if (this.controlsManager.keys.left) steerDir = 1;
         if (this.controlsManager.keys.right) steerDir = -1;
         
@@ -182,7 +216,8 @@ export class Player {
       }
       
       const maxSteerSpeed = 1.6; // Cap the maximum steering velocity so it doesn't rotate too fast
-      this.currentVehicle.body.angularVelocity.y = steerDir * maxSteerSpeed * moveDir;
+      const moveSign = this.currentVehicle.currentSpeed > 0 ? 1 : (this.currentVehicle.currentSpeed < 0 ? -1 : 0);
+      this.currentVehicle.body.angularVelocity.y = steerDir * maxSteerSpeed * moveSign;
       
       // 3. Keep player mesh snapped to vehicle seat coordinate offset
       const s = this.currentVehicle.asset.sockets.seat;

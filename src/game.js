@@ -96,6 +96,12 @@ export class Game {
       
       // 2. Game logic
       this.player.update(dt);
+      
+      const isDriving = this.player.state === 'driving';
+      if (this.joystickManager && this.joystickManager.isDrivingMode !== isDriving) {
+        this.joystickManager.toggleDrivingMode(isDriving);
+      }
+      
       this.npcManager.update(dt);
       if (this.city && this.city.update) {
         this.city.update(dt);

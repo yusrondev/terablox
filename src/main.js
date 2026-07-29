@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   
   // Render Map Selection options
-  const renderMapSelection = () => {
+  const renderMapSelection = async () => {
     mapList.innerHTML = '';
     
     // 1. Default Map Option
@@ -54,42 +54,53 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     mapList.appendChild(defaultItem);
     
-    // 2. Custom Maps from LocalStorage
-    const savedMaps = JSON.parse(localStorage.getItem('terablox_saved_maps') || '{}');
-    Object.keys(savedMaps).forEach(mapName => {
-      const customItem = document.createElement('div');
-      customItem.className = 'map-item';
-      
-      customItem.innerHTML = `
-        <div class="map-item-info">
-          <span class="map-item-title">${mapName}</span>
-          <span class="map-item-type">Custom Studio Map</span>
-        </div>
-        <button class="map-item-delete" title="Hapus Map">🗑️</button>
-      `;
-      
-      // Click row to play
-      customItem.addEventListener('click', (e) => {
-        if (e.target.classList.contains('map-item-delete')) return; // ignore delete clicks
-        
-        enterGameLayout();
-        const game = new Game({ mapData: savedMaps[mapName] });
-        game.init();
-      });
-      
-      // Click delete button
-      const deleteBtn = customItem.querySelector('.map-item-delete');
-      deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (confirm(`Apakah Anda yakin ingin menghapus map "${mapName}"?`)) {
-          delete savedMaps[mapName];
-          localStorage.setItem('terablox_saved_maps', JSON.stringify(savedMaps));
-          renderMapSelection();
-        }
-      });
-      
-      mapList.appendChild(customItem);
-    });
+    // 2. Custom Maps from Server API
+    try {
+      const res = await fetch('/api/load-maps?t=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) {
+        const savedMaps = await res.json();
+        Object.keys(savedMaps).forEach(mapName => {
+          const customItem = document.createElement('div');
+          customItem.className = 'map-item';
+          
+          customItem.innerHTML = `
+            <div class="map-item-info">
+              <span class="map-item-title">${mapName}</span>
+              <span class="map-item-type">Project Map</span>
+            </div>
+            <button class="map-item-delete" title="Hapus Map">🗑️</button>
+          `;
+          
+          // Click row to play
+          customItem.addEventListener('click', (e) => {
+            if (e.target.classList.contains('map-item-delete')) return; // ignore delete clicks
+            
+            enterGameLayout();
+            const game = new Game({ mapData: savedMaps[mapName] });
+            game.init();
+          });
+          
+          // Click delete button
+          const deleteBtn = customItem.querySelector('.map-item-delete');
+          deleteBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (confirm(`Apakah Anda yakin ingin menghapus map "${mapName}" dari Project?`)) {
+              delete savedMaps[mapName];
+              await fetch('/api/save-maps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(savedMaps)
+              });
+              renderMapSelection();
+            }
+          });
+          
+          mapList.appendChild(customItem);
+        });
+      }
+    } catch(err) {
+      console.error('Failed to load project maps:', err);
+    }
   };
   
   // Menu Buttons Bindings

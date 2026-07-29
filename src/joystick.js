@@ -80,5 +80,65 @@ export class JoystickManager {
         this.controls.keys.backward = false;
       });
     }
+
+    // Steer Left / Right Buttons
+    const btnSteerLeft = document.getElementById('btn-steer-left');
+    const btnSteerRight = document.getElementById('btn-steer-right');
+
+    if (btnSteerLeft) {
+      btnSteerLeft.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.controls.keys.left = true;
+      });
+      btnSteerLeft.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        this.controls.keys.left = false;
+      });
+    }
+
+    if (btnSteerRight) {
+      btnSteerRight.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.controls.keys.right = true;
+      });
+      btnSteerRight.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        this.controls.keys.right = false;
+      });
+    }
+  }
+
+  toggleDrivingMode(isDriving) {
+    if (!this.isTouchDevice) return;
+    this.isDrivingMode = isDriving;
+
+    const joystickZone = document.getElementById('joystick-zone');
+    const steeringButtons = document.getElementById('steering-buttons');
+    const btnGas = document.getElementById('btn-gas');
+    const btnRem = document.getElementById('btn-rem');
+    const btnSprint = document.getElementById('btn-sprint');
+    const btnJump = document.getElementById('btn-jump');
+
+    if (isDriving) {
+      if (joystickZone) joystickZone.style.display = 'none';
+      if (steeringButtons) steeringButtons.style.display = 'flex';
+      if (btnSprint) btnSprint.style.display = 'none';
+      if (btnJump) btnJump.style.display = 'none';
+      if (btnGas) btnGas.style.display = 'block';
+      if (btnRem) btnRem.style.display = 'block';
+    } else {
+      if (joystickZone) joystickZone.style.display = 'block';
+      if (steeringButtons) steeringButtons.style.display = 'none';
+      if (btnSprint) btnSprint.style.display = 'block';
+      if (btnJump) btnJump.style.display = 'block';
+      if (btnGas) btnGas.style.display = 'none';
+      if (btnRem) btnRem.style.display = 'none';
+
+      // Reset keys
+      this.controls.keys.left = false;
+      this.controls.keys.right = false;
+      this.controls.keys.forward = false;
+      this.controls.keys.backward = false;
+    }
   }
 }

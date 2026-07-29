@@ -17,6 +17,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   z-index: 1;
 }
 
@@ -26,6 +27,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   z-index: 10;
   pointer-events: none;
   /* Let clicks pass through to game container */
@@ -100,6 +102,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   background: radial-gradient(circle at center, #1e2a38 0%, #0d0f13 100%);
   background-image: 
     linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
@@ -627,7 +630,9 @@ body {
   left: 0;
   width: 320px;
   height: 100vh;
+  height: 100dvh;
   max-height: 100vh;
+  max-height: 100dvh;
   background: rgba(18, 24, 38, 0.75); /* Slate dark glassmorphic sidebar */
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);

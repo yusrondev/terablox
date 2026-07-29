@@ -419,6 +419,10 @@
       <!-- Mobile Controls (hidden by default on PC) -->
       <div id="mobile-controls">
         <div id="joystick-zone"></div>
+        <div id="steering-buttons" style="display: none; position: absolute; bottom: 50px; left: 30px; gap: 20px; pointer-events: auto; z-index: 9999;">
+          <button id="btn-steer-left" style="background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(255, 255, 255, 0.5); color: white; border-radius: 50%; width: 70px; height: 70px; font-size: 28px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); outline: none; -webkit-user-select: none; user-select: none;">⬅️</button>
+          <button id="btn-steer-right" style="background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(255, 255, 255, 0.5); color: white; border-radius: 50%; width: 70px; height: 70px; font-size: 28px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); outline: none; -webkit-user-select: none; user-select: none;">➡️</button>
+        </div>
         <div id="action-buttons">
           <button id="btn-sprint">Sprint</button>
           <button id="btn-jump">Jump</button>

@@ -1,0 +1,747 @@
+{
+  "city road": {
+    "mapSize": 4,
+    "placements": [
+      {
+        "type": "road",
+        "position": {
+          "x": 10,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": 0,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -10,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -20,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -30,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -40,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -50,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -60,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -70,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -90,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -80,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -110,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": -100,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": 10,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": 10,
+          "y": 2.220446049250313e-15,
+          "z": -10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": 10,
+          "y": 4.440892098500626e-15,
+          "z": -20
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": 10,
+          "y": 6.661338147750939e-15,
+          "z": -30
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": 10,
+          "y": 8.881784197001252e-15,
+          "z": -40
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road_roundabout",
+        "position": {
+          "x": 10,
+          "y": 0.00999999999999778,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "road",
+        "position": {
+          "x": 20,
+          "y": -2.220446049250313e-15,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "building",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": 0,
+        "height": 15,
+        "color": "#ffb7b2",
+        "tileScale": null
+      },
+      {
+        "type": "building",
+        "position": {
+          "x": -10,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": 0,
+        "height": 25,
+        "color": "#66f08f",
+        "tileScale": null
+      },
+      {
+        "type": "building",
+        "position": {
+          "x": 0,
+          "y": 8.881784197001252e-15,
+          "z": -40
+        },
+        "rotation": 0,
+        "height": 35,
+        "color": "#66f08f",
+        "tileScale": null
+      },
+      {
+        "type": "building",
+        "position": {
+          "x": 0,
+          "y": 6.661338147750939e-15,
+          "z": -30
+        },
+        "rotation": 0,
+        "height": 12,
+        "color": "#6676f0",
+        "tileScale": null
+      },
+      {
+        "type": "building",
+        "position": {
+          "x": 0,
+          "y": 2.220446049250313e-15,
+          "z": -10
+        },
+        "rotation": 0,
+        "height": 12,
+        "color": "#6676f0",
+        "tileScale": null
+      },
+      {
+        "type": "building",
+        "position": {
+          "x": 0,
+          "y": 4.440892098500626e-15,
+          "z": -20
+        },
+        "rotation": 0,
+        "height": 20,
+        "color": "#eef066",
+        "tileScale": null
+      },
+      {
+        "type": "building",
+        "position": {
+          "x": -20,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": 0,
+        "height": 20,
+        "color": "#eef066",
+        "tileScale": null
+      },
+      {
+        "type": "building",
+        "position": {
+          "x": 0,
+          "y": 1.1102230246251565e-14,
+          "z": -50
+        },
+        "rotation": 0,
+        "height": 20,
+        "color": "#eef066",
+        "tileScale": null
+      },
+      {
+        "type": "building",
+        "position": {
+          "x": -30,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": 0,
+        "height": 11,
+        "color": "#eef066",
+        "tileScale": null
+      },
+      {
+        "type": "custom_custom_c1b06bd7",
+        "position": {
+          "x": 12,
+          "y": 0.010000000000001777,
+          "z": -8
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "custom_custom_c1b06bd7",
+        "position": {
+          "x": 16,
+          "y": 1.7763568394002505e-15,
+          "z": -8
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "custom_custom_c1b06bd7",
+        "position": {
+          "x": 16,
+          "y": 2.6645352591003757e-15,
+          "z": -12
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "street_light",
+        "position": {
+          "x": 16,
+          "y": -4.440892098500626e-16,
+          "z": 2
+        },
+        "rotation": 4.71238898038469,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "street_light",
+        "position": {
+          "x": 16,
+          "y": 3.9968028886505635e-15,
+          "z": -18
+        },
+        "rotation": 4.71238898038469,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "street_light",
+        "position": {
+          "x": 16,
+          "y": 6.217248937900877e-15,
+          "z": -28
+        },
+        "rotation": 4.71238898038469,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "street_light",
+        "position": {
+          "x": 16,
+          "y": 7.549516567451064e-15,
+          "z": -34
+        },
+        "rotation": 4.71238898038469,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "street_light",
+        "position": {
+          "x": 16,
+          "y": 8.881784197001252e-15,
+          "z": -40
+        },
+        "rotation": 4.71238898038469,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "tree",
+        "position": {
+          "x": 10,
+          "y": 0.01999999999999778,
+          "z": 10
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "tree",
+        "position": {
+          "x": 16,
+          "y": 5.329070518200751e-15,
+          "z": -24
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "tree",
+        "position": {
+          "x": 16,
+          "y": 7.105427357601002e-15,
+          "z": -32
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "tree",
+        "position": {
+          "x": 16,
+          "y": 8.43769498715119e-15,
+          "z": -38
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      },
+      {
+        "type": "tree",
+        "position": {
+          "x": 16,
+          "y": 8.881784197001252e-16,
+          "z": -4
+        },
+        "rotation": 0,
+        "height": null,
+        "color": null,
+        "tileScale": null
+      }
+    ],
+    "customAssets": [
+      {
+        "id": "custom_c1b06bd7",
+        "name": "base motor",
+        "category": "vehicle",
+        "parts": [
+          {
+            "type": "sphere",
+            "position": {
+              "x": 0.0009151423681825754,
+              "y": 0.3,
+              "z": 1.1737339255685835
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.1,
+              "y": 0.5,
+              "z": 0.5
+            },
+            "color": "#48494c",
+            "roughness": 0.5,
+            "metalness": 0.1
+          },
+          {
+            "type": "sphere",
+            "position": {
+              "x": -0.0027050450111942154,
+              "y": 0.3,
+              "z": 1.1061211158225144
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.2,
+              "y": 0.1,
+              "z": 0.1
+            },
+            "color": "#828282",
+            "roughness": 0.5,
+            "metalness": 0.1
+          },
+          {
+            "type": "box",
+            "position": {
+              "x": 0.1,
+              "y": 0.3,
+              "z": 0.8
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.1,
+              "y": 0.1,
+              "z": 0.8
+            },
+            "color": "#3b82f6",
+            "roughness": 0.5,
+            "metalness": 0.1
+          },
+          {
+            "type": "box",
+            "position": {
+              "x": -0.1081941974936259,
+              "y": 0.3,
+              "z": 0.7980403883012799
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.1,
+              "y": 0.1,
+              "z": 0.8
+            },
+            "color": "#3b82f6",
+            "roughness": 0.5,
+            "metalness": 0.1
+          },
+          {
+            "type": "box",
+            "position": {
+              "x": -0.006324372002100384,
+              "y": 0.3,
+              "z": 0.2723225295889311
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.1,
+              "y": 0.1,
+              "z": 0.8
+            },
+            "color": "#3b82f6",
+            "roughness": 0.5,
+            "metalness": 0.1
+          },
+          {
+            "type": "box",
+            "position": {
+              "x": 0.09982338606517699,
+              "y": 0.3,
+              "z": -0.3352597452899855
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.1,
+              "y": 0.1,
+              "z": 0.8
+            },
+            "color": "#3b82f6",
+            "roughness": 0.5,
+            "metalness": 0.1
+          },
+          {
+            "type": "box",
+            "position": {
+              "x": -0.11531629899102391,
+              "y": 0.3,
+              "z": -0.3425779170623305
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.1,
+              "y": 0.1,
+              "z": 0.8
+            },
+            "color": "#3b82f6",
+            "roughness": 0.5,
+            "metalness": 0.1
+          },
+          {
+            "type": "sphere",
+            "position": {
+              "x": -0.00606323571084378,
+              "y": 0.3,
+              "z": -0.7070878639346432
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.1,
+              "y": 0.5,
+              "z": 0.5
+            },
+            "color": "#48494c",
+            "roughness": 0.5,
+            "metalness": 0.1
+          },
+          {
+            "type": "box",
+            "position": {
+              "x": -0.008626013839181379,
+              "y": 0.5,
+              "z": 0.33737814631453616
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.3,
+              "y": 0.3,
+              "z": 1
+            },
+            "color": "#3b82f6",
+            "roughness": 0.5,
+            "metalness": 0.1
+          },
+          {
+            "type": "box",
+            "position": {
+              "x": 0,
+              "y": 0.7,
+              "z": 0.8
+            },
+            "rotation": {
+              "x": 0,
+              "y": 90,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.1,
+              "y": 0.1,
+              "z": 0.8
+            },
+            "color": "#3b82f6",
+            "roughness": 0.5,
+            "metalness": 0.1
+          }
+        ],
+        "sockets": {
+          "seat": {
+            "x": 0,
+            "y": 0.9,
+            "z": 0.2
+          },
+          "wheel": {
+            "x": 0,
+            "y": 0.9,
+            "z": 0.9
+          },
+          "exit": {
+            "x": 0,
+            "y": 0.7,
+            "z": -0.3
+          }
+        }
+      }
+    ]
+  }
+}
