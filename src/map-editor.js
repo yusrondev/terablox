@@ -28,6 +28,7 @@ export class MapEditor {
     this.pickerTile = document.getElementById('picker-tile');
     this.selectedTileColor = '#ffffff';
     this.history = []; // History stack for Ctrl+Z undo
+    this.dragStartPos = { x: 0, y: 0 }; // Track camera drags
     
     this.setupUI();
     this.setupListeners();
@@ -146,14 +147,19 @@ export class MapEditor {
     this.onMouseMove = this.onMouseMove.bind(this);
     this.onMouseClick = this.onMouseClick.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
+    this.onMouseDown = this.onMouseDown.bind(this);
   }
   
   activate(subMode = 'props') {
+    // Clean up first to prevent duplicate event listeners when switching tabs!
+    this.deactivate();
+    
     this.active = true;
     this.subMode = subMode;
     this.deselectObject();
     
     // Bind global listeners
+    window.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('click', this.onMouseClick);
     window.addEventListener('keydown', this.onKeyDown);
@@ -175,6 +181,7 @@ export class MapEditor {
     this.deselectObject();
     
     // Unbind listeners
+    window.removeEventListener('mousedown', this.onMouseDown);
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('click', this.onMouseClick);
     window.removeEventListener('keydown', this.onKeyDown);
@@ -308,12 +315,25 @@ export class MapEditor {
     this.ghostMesh.rotation.y = this.rotationAngle;
   }
   
+  onMouseDown(e) {
+    this.dragStartPos.x = e.clientX;
+    this.dragStartPos.y = e.clientY;
+  }
+  
   onMouseClick(e) {
     if (!this.active || !this.ghostMesh) return;
     
     // Ignore clicks on UI
     if (e.clientX > window.innerWidth - 340 && e.clientY > 60) return;
     if (e.clientY < 60) return; // Top HUD clicks
+    
+    // Detect if mouse was dragged to rotate or pan camera. If so, ignore click to prevent spawning.
+    const dx = e.clientX - this.dragStartPos.x;
+    const dy = e.clientY - this.dragStartPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 5) {
+      return;
+    }
     
     if (this.selectedBrush === 'clear') {
       this.raycastErase(e);
