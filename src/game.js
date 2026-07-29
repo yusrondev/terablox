@@ -10,7 +10,7 @@ import { NPCManager }      from './npc.js';
 import { EditorManager }   from './editor.js';
 
 export class Game {
-  constructor() {
+  constructor(options = {}) {
     this.prevTime = performance.now();
     
     // Order matters: scene before everything
@@ -22,7 +22,8 @@ export class Game {
     this.sceneManager.setCamera(this.cameraManager);
     
     // World & entities
-    this.city       = new CityGenerator(this.sceneManager, this.physicsManager);
+    const isCustomMap = !!options.mapData;
+    this.city       = new CityGenerator(this.sceneManager, this.physicsManager, { onlyGround: isCustomMap });
     this.cameraManager.setBuildingBoxes(this.sceneManager.buildingBoxes);
     
     this.player     = new Player(this.sceneManager, this.physicsManager, this.cameraManager, this.controlsManager);
@@ -41,6 +42,18 @@ export class Game {
     });
     
     this.editorManager = new EditorManager(this);
+    
+    // Load custom map data if provided
+    if (isCustomMap) {
+      this.editorManager.mapEditor.loadMapData(options.mapData);
+    }
+    
+    // Enter editor mode directly if configured
+    if (options.mode === 'editor') {
+      setTimeout(() => {
+        this.editorManager.enterEditorMode();
+      }, 50); // small delay to let Three.js scene initialize
+    }
     
     this.loop = this.loop.bind(this);
   }

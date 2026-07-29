@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
 export class CityGenerator {
-  constructor(sceneManager, physicsManager) {
+  constructor(sceneManager, physicsManager, options = {}) {
     this.sceneManager  = sceneManager;
     this.physicsManager = physicsManager;
+    this.options = options;
     
     // Pastel color palette
     this.colors = {
@@ -24,7 +25,9 @@ export class CityGenerator {
   
   generate() {
     this.createGround();
-    this.createCity();
+    if (!this.options.onlyGround) {
+      this.createCity();
+    }
     this.createBoundaryWalls();
   }
   

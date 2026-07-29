@@ -12,8 +12,22 @@
     
     <!-- Start Screen Overlay -->
     <div id="start-screen">
-      <h1>Roblox Style Game</h1>
-      <button id="btn-play">PLAY</button>
+      <div id="menu-main-panel">
+        <h1>Roblox Style Game</h1>
+        <div class="menu-buttons">
+          <button id="btn-play-game" class="menu-btn">PLAY GAME</button>
+          <button id="btn-open-studio" class="menu-btn studio-btn">STUDIO EDITOR</button>
+        </div>
+      </div>
+      
+      <!-- Map Selection Modal -->
+      <div id="map-selection-modal" style="display: none;">
+        <h3>Pilih Map</h3>
+        <div id="map-list">
+          <!-- Populated by JS -->
+        </div>
+        <button id="btn-map-back" class="menu-btn sec-btn">Kembali</button>
+      </div>
     </div>
     
     <!-- UI Overlay (Hidden initially) -->
@@ -21,7 +35,6 @@
       <div id="hud">
         <div id="fps-counter">FPS: 0</div>
         <div id="coordinates">X: 0, Y: 0, Z: 0</div>
-        <button id="btn-editor-toggle">🛠️ Editor Studio</button>
       </div>
       
       <!-- Game Studio Editor Panel -->
@@ -30,7 +43,7 @@
           <button class="editor-tab-btn active" data-tab="character">👤 Character</button>
           <button class="editor-tab-btn" data-tab="props">🪴 Props</button>
           <button class="editor-tab-btn" data-tab="city">🏙️ City Builder</button>
-          <button id="btn-editor-exit" class="editor-exit-btn">❌ Close</button>
+          <button id="btn-editor-exit" class="editor-exit-btn">❌ Exit Studio</button>
         </div>
 
         <div class="editor-content">
@@ -114,10 +127,11 @@
               <label>Building Height: <span id="lbl-bld-height">15</span>m</label>
               <input type="range" id="range-bld-height" min="8" max="40" value="15" style="width: 100%;">
             </div>
-            <div class="map-io-group">
-              <button id="btn-export-map" class="editor-action-btn">Export Map JSON</button>
-              <button id="btn-import-map" class="editor-action-btn sec-btn">Import Map JSON</button>
-            </div>
+             <div class="map-io-group">
+               <button id="btn-save-map" class="editor-action-btn">Save Map to Studio</button>
+               <button id="btn-export-map" class="editor-action-btn sec-btn">Export Map JSON</button>
+               <button id="btn-import-map" class="editor-action-btn sec-btn">Import Map JSON</button>
+             </div>
           </div>
         </div>
       </div>

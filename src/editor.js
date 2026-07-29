@@ -23,8 +23,12 @@ export class EditorManager {
   }
   
   initEvents() {
-    this.btnToggle.addEventListener('click', () => this.toggleEditorMode());
-    this.btnExit.addEventListener('click', () => this.toggleEditorMode());
+    if (this.btnToggle) {
+      this.btnToggle.addEventListener('click', () => this.toggleEditorMode());
+    }
+    if (this.btnExit) {
+      this.btnExit.addEventListener('click', () => this.toggleEditorMode());
+    }
     
     this.tabButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -45,7 +49,7 @@ export class EditorManager {
   enterEditorMode() {
     this.activeMode = 'editor';
     this.uiContainer.style.display = 'flex';
-    this.btnToggle.textContent = '🎮 Play Mode';
+    if (this.btnToggle) this.btnToggle.textContent = '🎮 Play Mode';
     
     // Hide standard mobile controls
     const mobileControls = document.getElementById('mobile-controls');
@@ -62,26 +66,8 @@ export class EditorManager {
   }
   
   exitEditorMode() {
-    this.activeMode = 'play';
-    this.uiContainer.style.display = 'none';
-    this.btnToggle.textContent = '🛠️ Editor Studio';
-    
-    // Restore standard mobile controls if touch device
-    const mobileControls = document.getElementById('mobile-controls');
-    if (mobileControls && this.game.joystickManager && this.game.joystickManager.isTouchDevice) {
-      mobileControls.style.display = 'block';
-    }
-    
-    // Deactivate active sub-editor states
-    this.mapEditor.deactivate();
-    this.characterStudio.deactivate();
-    
-    // Reset camera to player orbit
-    if (this.game.cameraManager) {
-      this.game.cameraManager.theta = Math.PI;
-      this.game.cameraManager.phi = 0.35;
-      this.game.cameraManager.distance = 10;
-    }
+    // Reload page to exit cleanly to main menu
+    window.location.reload();
   }
   
   switchTab(tabName) {

@@ -38,6 +38,7 @@ export class MapEditor {
     
     this.btnExport = document.getElementById('btn-export-map');
     this.btnImport = document.getElementById('btn-import-map');
+    this.btnSaveMap = document.getElementById('btn-save-map');
     
     // Snap toggle
     this.checkSnap.addEventListener('change', (e) => {
@@ -94,8 +95,16 @@ export class MapEditor {
     }
     
     // Export / Import
-    this.btnExport.addEventListener('click', () => this.exportMap());
-    this.btnImport.addEventListener('click', () => this.importMap());
+    if (this.btnExport) this.btnExport.addEventListener('click', () => this.exportMap());
+    if (this.btnImport) this.btnImport.addEventListener('click', () => this.importMap());
+    if (this.btnSaveMap) {
+      this.btnSaveMap.addEventListener('click', () => {
+        const name = prompt('Masukkan Nama Map:');
+        if (name && name.trim()) {
+          this.saveMapToLocalStorage(name.trim());
+        }
+      });
+    }
   }
   
   setupListeners() {
@@ -519,6 +528,61 @@ export class MapEditor {
       alert('Data Map berhasil di-Import!');
     } catch (e) {
       alert('Gagal meng-Import Map. Format JSON salah!');
+    }
+  }
+
+  saveMapToLocalStorage(name) {
+    const savedMaps = JSON.parse(localStorage.getItem('terablox_saved_maps') || '{}');
+    if (savedMaps[name]) {
+      if (!confirm(`Map dengan nama "${name}" sudah ada. Apakah Anda ingin menimpanya?`)) {
+        return;
+      }
+    }
+
+    const mapData = this.placedObjects.map(obj => ({
+      type: obj.type,
+      position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+      rotation: obj.rotation,
+      height: obj.height
+    }));
+
+    savedMaps[name] = mapData;
+    localStorage.setItem('terablox_saved_maps', JSON.stringify(savedMaps));
+    alert(`Map "${name}" berhasil disimpan ke Studio!`);
+  }
+
+  clearPlacements() {
+    this.placedObjects.forEach(obj => {
+      this.game.sceneManager.scene.remove(obj.mesh);
+      if (obj.body) this.game.physicsManager.world.removeBody(obj.body);
+    });
+    this.placedObjects = [];
+  }
+
+  loadMapData(mapData) {
+    this.clearPlacements();
+    if (!mapData || mapData.length === 0) return;
+
+    // Create a temporary ghost if not active
+    let needDestroyGhost = false;
+    if (!this.ghostMesh) {
+      this.createGhost('hydrant'); // placeholder
+      needDestroyGhost = true;
+    }
+
+    mapData.forEach(data => {
+      this.rotationAngle = data.rotation;
+      this.ghostMesh.position.set(data.position.x, data.position.y, data.position.z);
+      if (data.type === 'building' && data.height) {
+        if (this.rangeHeight) this.rangeHeight.value = data.height;
+        if (this.lblHeight) this.lblHeight.textContent = data.height;
+      }
+      this.placeObject();
+    });
+
+    if (needDestroyGhost && this.ghostMesh) {
+      this.game.sceneManager.scene.remove(this.ghostMesh);
+      this.ghostMesh = null;
     }
   }
 }
