@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { CharacterStudio } from './character-studio.js';
 import { MapEditor } from './map-editor.js';
 import { CreatorStudio } from './creator-studio.js';

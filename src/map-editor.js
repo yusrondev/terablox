@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { CUSTOM_PRESETS } from './custom-presets.js';
 
 export class MapEditor {
   constructor(editorManager, game) {
@@ -217,7 +218,19 @@ export class MapEditor {
   loadCustomAssets() {
     this.customCatalogList = document.getElementById('custom-catalog-list');
     const saved = localStorage.getItem('creator_assets');
-    this.customAssets = saved ? JSON.parse(saved) : [];
+    const savedAssets = saved ? JSON.parse(saved) : [];
+    
+    // Merge global presets with local storage custom assets
+    const merged = [...CUSTOM_PRESETS];
+    savedAssets.forEach(sa => {
+      const idx = merged.findIndex(a => a.id === sa.id);
+      if (idx !== -1) {
+        merged[idx] = sa;
+      } else {
+        merged.push(sa);
+      }
+    });
+    this.customAssets = merged;
     
     if (!this.customCatalogList) return;
     this.customCatalogList.innerHTML = '';

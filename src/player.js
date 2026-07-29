@@ -170,17 +170,19 @@ export class Player {
       this.currentVehicle.body.velocity.x = targetVel.x;
       this.currentVehicle.body.velocity.z = targetVel.z;
       
-      // A/D steering or joystick X-axis steering
+      // A/D steering or joystick X-axis steering (only allowed if moving/gassed)
       let steerDir = 0;
-      if (this.controlsManager.keys.left) steerDir = 1;
-      if (this.controlsManager.keys.right) steerDir = -1;
-      
-      if (this.controlsManager.joystickVector && this.controlsManager.joystickVector.x !== 0) {
-        steerDir = -this.controlsManager.joystickVector.x;
+      if (moveDir !== 0) {
+        if (this.controlsManager.keys.left) steerDir = 1;
+        if (this.controlsManager.keys.right) steerDir = -1;
+        
+        if (this.controlsManager.joystickVector && this.controlsManager.joystickVector.x !== 0) {
+          steerDir = -this.controlsManager.joystickVector.x;
+        }
       }
       
-      const steerSpeed = 2.2;
-      this.currentVehicle.body.angularVelocity.y = steerDir * steerSpeed;
+      const maxSteerSpeed = 1.6; // Cap the maximum steering velocity so it doesn't rotate too fast
+      this.currentVehicle.body.angularVelocity.y = steerDir * maxSteerSpeed * moveDir;
       
       // 3. Keep player mesh snapped to vehicle seat coordinate offset
       const s = this.currentVehicle.asset.sockets.seat;

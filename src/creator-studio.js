@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CUSTOM_PRESETS } from './custom-presets.js';
 
 export class CreatorStudio {
   constructor(editorManager, game) {
@@ -89,6 +90,7 @@ export class CreatorStudio {
     this.btnCancelEdit = document.getElementById('btn-cancel-edit-asset');
     this.selectCreatorLoadAsset = document.getElementById('select-creator-load-asset');
     this.btnCreatorLoadAsset = document.getElementById('btn-creator-load-asset');
+    this.btnExportPreset = document.getElementById('btn-creator-export-preset');
     this.editingAssetId = null;
     
     this.init();
@@ -208,12 +210,26 @@ export class CreatorStudio {
           return;
         }
         const saved = localStorage.getItem('creator_assets');
-        const assetsList = saved ? JSON.parse(saved) : [];
-        const asset = assetsList.find(a => a.id === id);
+        const savedAssets = saved ? JSON.parse(saved) : [];
+        
+        const merged = [...CUSTOM_PRESETS];
+        savedAssets.forEach(sa => {
+          const idx = merged.findIndex(a => a.id === sa.id);
+          if (idx !== -1) {
+            merged[idx] = sa;
+          } else {
+            merged.push(sa);
+          }
+        });
+        
+        const asset = merged.find(a => a.id === id);
         if (asset) {
           this.editAsset(asset);
         }
       });
+    }
+    if (this.btnExportPreset) {
+      this.btnExportPreset.addEventListener('click', () => this.exportPresetsFile());
     }
     
     // 6. Category select toggles socket inputs
@@ -1077,13 +1093,76 @@ export class CreatorStudio {
     this.selectCreatorLoadAsset.innerHTML = '<option value="">-- Pilih Aset --</option>';
     
     const saved = localStorage.getItem('creator_assets');
-    const assetsList = saved ? JSON.parse(saved) : [];
+    const savedAssets = saved ? JSON.parse(saved) : [];
     
-    assetsList.forEach(asset => {
+    const merged = [...CUSTOM_PRESETS];
+    savedAssets.forEach(sa => {
+      const idx = merged.findIndex(a => a.id === sa.id);
+      if (idx !== -1) {
+        merged[idx] = sa;
+      } else {
+        merged.push(sa);
+      }
+    });
+    
+    merged.forEach(asset => {
       const opt = document.createElement('option');
       opt.value = asset.id;
       opt.textContent = `${asset.name} (${asset.category})`;
       this.selectCreatorLoadAsset.appendChild(opt);
+    });
+  }
+
+  exportPresetsFile() {
+    const saved = localStorage.getItem('creator_assets');
+    const savedAssets = saved ? JSON.parse(saved) : [];
+    
+    const merged = [...CUSTOM_PRESETS];
+    savedAssets.forEach(sa => {
+      const idx = merged.findIndex(a => a.id === sa.id);
+      if (idx !== -1) {
+        merged[idx] = sa;
+      } else {
+        merged.push(sa);
+      }
+    });
+
+    fetch('/api/save-presets', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ presets: merged })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        const btn = this.btnExportPreset;
+        if (btn) {
+          const oldText = btn.textContent;
+          btn.textContent = '✅ Saved to Project!';
+          btn.style.background = '#10b981';
+          btn.style.color = '#ffffff';
+          setTimeout(() => {
+            btn.textContent = oldText;
+            btn.style.background = '';
+            btn.style.color = '';
+          }, 2000);
+        }
+      } else {
+        alert('Gagal menyimpan preset ke project: ' + data.error);
+      }
+    })
+    .catch(err => {
+      // Fallback: download file if API fails (e.g., in production static build)
+      const fileContent = `export const CUSTOM_PRESETS = ${JSON.stringify(merged, null, 2)};\n`;
+      const blob = new Blob([fileContent], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'custom-presets.js';
+      a.click();
+      URL.revokeObjectURL(url);
     });
   }
 }
