@@ -1328,46 +1328,79 @@ export class MapEditor {
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
     
-    // 1. Fill entire background with grass color
-    const grassColor = (this.game.city && this.game.city.colors) ? this.game.city.colors.grass : '#a8d48a';
-    ctx.fillStyle = grassColor;
+    // Resolve grass color (numbers converted to hex strings)
+    const grassColorVal = (this.game.city && this.game.city.colors) ? this.game.city.colors.grass : 0xa8d48a;
+    const grassColor = '#' + grassColorVal.toString(16).padStart(6, '0');
+    
+    // 1. Fill entire background with asphalt
+    ctx.fillStyle = '#22252a';
     ctx.fillRect(0, 0, 512, 512);
     
-    // 2. Draw perfect asphalt outer circle (radius 256, touches edges)
-    ctx.beginPath();
-    ctx.arc(256, 256, 256, 0, Math.PI * 2);
-    ctx.fillStyle = '#22252a';
-    ctx.fill();
-    
-    // 3. Add noise inside the asphalt ring (only paint noise if distance from center is between 120 and 256)
-    for (let i = 0; i < 6000; i++) {
+    // 2. Draw noise over the entire asphalt area
+    for (let i = 0; i < 7000; i++) {
         const x = Math.random() * 512;
         const y = Math.random() * 512;
-        const dx = x - 256;
-        const dy = y - 256;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist >= 120 && dist <= 256) {
-            ctx.fillStyle = Math.random() > 0.5 ? '#1a1d21' : '#2a2e35';
-            ctx.fillRect(x, y, 3, 3);
-        }
+        ctx.fillStyle = Math.random() > 0.5 ? '#1a1d21' : '#2a2e35';
+        ctx.fillRect(x, y, 3, 3);
     }
     
-    // 4. Draw outer curb line (radius 250, white/light grey)
+    // 3. Draw 4 grass quarter-circles at the corners (radius 80 to make entry wide and smooth)
+    ctx.fillStyle = grassColor;
+    const cornerRadius = 80;
+    
+    // Top-Left corner
     ctx.beginPath();
-    ctx.arc(256, 256, 250, 0, Math.PI * 2);
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, cornerRadius, 0, Math.PI / 2);
+    ctx.fill();
+    
+    // Top-Right corner
+    ctx.beginPath();
+    ctx.moveTo(512, 0);
+    ctx.arc(512, 0, cornerRadius, Math.PI / 2, Math.PI);
+    ctx.fill();
+    
+    // Bottom-Left corner
+    ctx.beginPath();
+    ctx.moveTo(0, 512);
+    ctx.arc(0, 512, cornerRadius, 1.5 * Math.PI, 2 * Math.PI);
+    ctx.fill();
+    
+    // Bottom-Right corner
+    ctx.beginPath();
+    ctx.moveTo(512, 512);
+    ctx.arc(512, 512, cornerRadius, Math.PI, 1.5 * Math.PI);
+    ctx.fill();
+
+    // 4. Draw outer curb lines along the grass corner curves
     ctx.strokeStyle = '#dcdde1';
     ctx.lineWidth = 10;
+    
+    ctx.beginPath();
+    ctx.arc(0, 0, cornerRadius, 0, Math.PI / 2);
     ctx.stroke();
     
-    // 5. Draw central grass island (radius 120)
     ctx.beginPath();
-    ctx.arc(256, 256, 120, 0, Math.PI * 2);
+    ctx.arc(512, 0, cornerRadius, Math.PI / 2, Math.PI);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.arc(0, 512, cornerRadius, 1.5 * Math.PI, 2 * Math.PI);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.arc(512, 512, cornerRadius, Math.PI, 1.5 * Math.PI);
+    ctx.stroke();
+    
+    // 5. Draw central grass island (radius 130)
+    ctx.beginPath();
+    ctx.arc(256, 256, 130, 0, Math.PI * 2);
     ctx.fillStyle = grassColor;
     ctx.fill();
     
-    // 6. Draw inner curb line (radius 120, white/light grey)
+    // 6. Draw inner curb line
     ctx.beginPath();
-    ctx.arc(256, 256, 120, 0, Math.PI * 2);
+    ctx.arc(256, 256, 130, 0, Math.PI * 2);
     ctx.strokeStyle = '#dcdde1';
     ctx.lineWidth = 10;
     ctx.stroke();
