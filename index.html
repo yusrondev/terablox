@@ -42,12 +42,17 @@
       
       <!-- Game Studio Editor Panel -->
       <div id="editor-ui-container" style="display: none;">
+        <div class="editor-header">
+          <span class="editor-logo">🛠️ STUDIO</span>
+          <div class="editor-header-buttons">
+            <button id="btn-editor-play" class="editor-action-btn-play">▶ Play</button>
+            <button id="btn-editor-exit" class="editor-action-btn-exit">✕ Exit</button>
+          </div>
+        </div>
         <div class="editor-tabs">
           <button class="editor-tab-btn active" data-tab="character">👤 Character</button>
           <button class="editor-tab-btn" data-tab="props">🪴 Props</button>
-          <button class="editor-tab-btn" data-tab="city">🏙️ City Builder</button>
-          <button id="btn-editor-play" class="editor-play-btn" style="background: rgba(16, 185, 129, 0.2); color: #10b981; font-weight: bold; margin-left: auto; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: background 0.1s;">▶️ Play</button>
-          <button id="btn-editor-exit" class="editor-exit-btn">❌ Exit</button>
+          <button class="editor-tab-btn" data-tab="city">🏙️ Builder</button>
         </div>
 
         <div class="editor-content">
