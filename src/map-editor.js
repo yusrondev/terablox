@@ -27,6 +27,7 @@ export class MapEditor {
     this.tileColorPickerGroup = document.getElementById('tile-color-picker-group');
     this.pickerTile = document.getElementById('picker-tile');
     this.selectedTileColor = '#ffffff';
+    this.history = []; // History stack for Ctrl+Z undo
     
     this.setupUI();
     this.setupListeners();
@@ -339,11 +340,13 @@ export class MapEditor {
     const type = (this.subMode === 'props') ? this.selectedProp : this.selectedBrush;
     if (type === 'clear') return;
     
-    // Check if tile/position is already occupied
-    const occupied = this.placedObjects.some(obj => 
-      obj.position.distanceTo(this.ghostMesh.position) < 0.5 && obj.type === type
-    );
-    if (occupied) return;
+    // Check if tile/position is already occupied (only if snap to grid is active)
+    if (this.snapEnabled) {
+      const occupied = this.placedObjects.some(obj => 
+        obj.position.distanceTo(this.ghostMesh.position) < 0.5 && obj.type === type
+      );
+      if (occupied) return;
+    }
     
     let visualMesh;
     let physicsBody = null;
@@ -528,6 +531,12 @@ export class MapEditor {
     };
     
     this.placedObjects.push(placedObj);
+    
+    // Log action to history
+    this.history.push({
+      action: 'place',
+      object: placedObj
+    });
   }
   
   eraseObjectAt(pos) {
@@ -538,6 +547,18 @@ export class MapEditor {
     
     if (index !== -1) {
       const obj = this.placedObjects[index];
+      
+      // Log deletion to history
+      this.history.push({
+        action: 'delete',
+        type: obj.type,
+        position: obj.position.clone(),
+        rotation: obj.rotation,
+        height: obj.height,
+        color: obj.color,
+        id: obj.id
+      });
+      
       this.game.sceneManager.scene.remove(obj.mesh);
       if (obj.body) {
         this.game.physicsManager.world.removeBody(obj.body);
@@ -572,6 +593,18 @@ export class MapEditor {
       const index = this.placedObjects.findIndex(obj => obj.mesh === hitMesh);
       if (index !== -1) {
         const obj = this.placedObjects[index];
+        
+        // Log deletion to history
+        this.history.push({
+          action: 'delete',
+          type: obj.type,
+          position: obj.position.clone(),
+          rotation: obj.rotation,
+          height: obj.height,
+          color: obj.color,
+          id: obj.id
+        });
+        
         this.game.sceneManager.scene.remove(obj.mesh);
         if (obj.body) {
           this.game.physicsManager.world.removeBody(obj.body);
@@ -593,12 +626,27 @@ export class MapEditor {
   onKeyDown(e) {
     if (!this.active) return;
     
+    // Ctrl+Z Undo
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      this.undo();
+      return;
+    }
+    
     if (e.key === 'r' || e.key === 'R') {
+      const prevRotation = this.rotationAngle;
       this.rotationAngle = (this.rotationAngle + Math.PI / 2) % (Math.PI * 2);
       if (this.ghostMesh) {
         this.ghostMesh.rotation.y = this.rotationAngle;
       }
       if (this.selectedObject) {
+        // Log rotation to history
+        this.history.push({
+          action: 'rotate',
+          object: this.selectedObject,
+          prevRotation: prevRotation
+        });
+        
         this.selectedObject.mesh.rotation.y = this.rotationAngle;
         this.selectedObject.rotation = this.rotationAngle;
         if (this.selectedObject.body) {
@@ -795,6 +843,94 @@ export class MapEditor {
       this.game.sceneManager.scene.remove(this.ghostMesh);
       this.ghostMesh = null;
     }
+    
+    // Clear history stack upon initial load to prevent undoing map initialization
+    this.history = [];
+  }
+
+  undo() {
+    if (this.history.length === 0) return;
+    const item = this.history.pop();
+    
+    if (item.action === 'place') {
+      // Remove placed object
+      const index = this.placedObjects.findIndex(obj => obj.id === item.object.id);
+      if (index !== -1) {
+        const obj = this.placedObjects[index];
+        this.game.sceneManager.scene.remove(obj.mesh);
+        if (obj.body) this.game.physicsManager.world.removeBody(obj.body);
+        if (obj.type === 'bench') {
+          const intIndex = this.game.sceneManager.interactables.findIndex(int => 
+            int.position.distanceTo(new THREE.Vector3(obj.position.x, obj.position.y + 0.6, obj.position.z)) < 0.1
+          );
+          if (intIndex !== -1) this.game.sceneManager.interactables.splice(intIndex, 1);
+        }
+        this.placedObjects.splice(index, 1);
+        this.deselectObject();
+      }
+    } 
+    else if (item.action === 'delete') {
+      // Re-place deleted object
+      const prevRotation = this.rotationAngle;
+      const prevSelectedProp = this.selectedProp;
+      const prevSelectedBrush = this.selectedBrush;
+      const prevHeight = this.rangeHeight ? this.rangeHeight.value : null;
+      const prevTileColor = this.selectedTileColor;
+      
+      this.rotationAngle = item.rotation;
+      if (item.height && this.rangeHeight) {
+        this.rangeHeight.value = item.height;
+        if (this.lblHeight) this.lblHeight.textContent = item.height;
+      }
+      if (item.color) this.selectedTileColor = item.color;
+      
+      this.ghostMesh.position.copy(item.position);
+      
+      const origSubMode = this.subMode;
+      if (item.type === 'building' || item.type === 'road') {
+        this.subMode = 'city';
+        this.selectedBrush = item.type;
+      } else {
+        this.subMode = 'props';
+        this.selectedProp = item.type;
+      }
+      
+      // Temporarily disable history logs during undo recreation
+      const origHistory = this.history;
+      this.history = [];
+      this.placeObject();
+      this.history = origHistory;
+      
+      // Restore states
+      this.rotationAngle = prevRotation;
+      this.selectedProp = prevSelectedProp;
+      this.selectedBrush = prevSelectedBrush;
+      if (prevHeight && this.rangeHeight) {
+        this.rangeHeight.value = prevHeight;
+        if (this.lblHeight) this.lblHeight.textContent = prevHeight;
+      }
+      this.selectedTileColor = prevTileColor;
+      this.subMode = origSubMode;
+      
+      // Set the placed object's ID back to the deleted ID so future undos/interactions align
+      if (this.placedObjects.length > 0) {
+        this.placedObjects[this.placedObjects.length - 1].id = item.id;
+      }
+    }
+    else if (item.action === 'rotate') {
+      const obj = item.object;
+      obj.mesh.rotation.y = item.prevRotation;
+      obj.rotation = item.prevRotation;
+      if (obj.body) {
+        obj.body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), item.prevRotation);
+      }
+      if (obj.type === 'bench') {
+        const intItem = this.game.sceneManager.interactables.find(int => 
+          int.position.distanceTo(new THREE.Vector3(obj.position.x, obj.position.y + 0.6, obj.position.z)) < 0.1
+        );
+        if (intItem) intItem.rotation = item.prevRotation;
+      }
+    }
   }
 
   createRoadTexture() {
@@ -813,22 +949,7 @@ export class MapEditor {
         ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
     }
     
-    // Dashed lines crossing through center (forming two lanes in both directions)
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 16; 
-    ctx.setLineDash([40, 40]);
-    
-    // Vertical line
-    ctx.beginPath();
-    ctx.moveTo(256, 0);
-    ctx.lineTo(256, 512);
-    ctx.stroke();
-    
-    // Horizontal line
-    ctx.beginPath();
-    ctx.moveTo(0, 256);
-    ctx.lineTo(512, 256);
-    ctx.stroke();
+    // Dashed lines removed for plain asphalt road look
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;

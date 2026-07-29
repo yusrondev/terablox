@@ -659,22 +659,7 @@ export class CityGenerator {
         ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
     }
     
-    // Dashed lines on the borders (forms the center of the road between blocks)
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 16; 
-    ctx.setLineDash([40, 40]);
-    
-    // Left edge
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, 512);
-    ctx.stroke();
-    
-    // Top edge
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(512, 0);
-    ctx.stroke();
+    // Dashed lines removed for plain asphalt road look
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
