@@ -127,20 +127,46 @@ body {
 }
 
 .block-title {
-  font-size: 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0 35px 0;
+  line-height: 0.95;
+  perspective: 800px;
+  transform: rotateX(15deg) rotateY(-15deg) rotateZ(6deg);
+  transform-style: preserve-3d;
+}
+
+.block-title span {
+  font-size: 3.6rem;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 4px;
+  letter-spacing: 3px;
   color: #ffd200; /* Voxel Yellow */
-  margin: 0 0 40px 0;
+  display: block;
   text-shadow: 
-    0 2px 0 #cc6600,
-    0 4px 0 #b35900,
-    0 6px 0 #994d00,
-    0 8px 0 #804000,
-    0 10px 10px rgba(0, 0, 0, 0.5);
-  transform: rotate(-1deg);
-  display: inline-block;
+    -1px 1px 0 #cc6600,
+    -2px 2px 0 #cc6600,
+    -3px 3px 0 #b35900,
+    -4px 4px 0 #b35900,
+    -5px 5px 0 #994d00,
+    -6px 6px 0 #994d00,
+    -7px 7px 0 #804000,
+    -8px 8px 12px rgba(0, 0, 0, 0.6);
+}
+
+.block-title .title-bottom {
+  font-size: 3.2rem;
+  color: #00cec9; /* Voxel Cyan for premium style */
+  text-shadow: 
+    -1px 1px 0 #009794,
+    -2px 2px 0 #009794,
+    -3px 3px 0 #00807d,
+    -4px 4px 0 #00807d,
+    -5px 5px 0 #006664,
+    -6px 6px 0 #006664,
+    -7px 7px 0 #004d4b,
+    -8px 8px 12px rgba(0, 0, 0, 0.6);
 }
 
 .menu-buttons {
