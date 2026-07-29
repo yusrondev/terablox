@@ -402,7 +402,13 @@ export class MapEditor {
     }
     
     // Allow clicking on existing placed objects to select them (unless painting roads/buildings)
-    if (this.subMode === 'props' && this.selectedProp !== 'lamp' && this.selectedProp !== 'street_light' && this.selectedProp !== 'bench' && this.selectedProp !== 'tree' && this.selectedProp !== 'hydrant' && this.selectedProp !== 'grass' && this.selectedProp !== 'tile' && this.selectedProp !== 'tycoon_button') {
+    const isPlaceableProp = [
+      'lamp', 'street_light', 'bench', 'tree', 'pine_tree', 
+      'hydrant', 'sign_no_parking', 'fountain', 'grass', 
+      'tile', 'tycoon_button'
+    ].includes(this.selectedProp);
+
+    if (this.subMode === 'props' && !isPlaceableProp) {
       this.raycastSelect(e);
       return;
     }
@@ -750,12 +756,19 @@ export class MapEditor {
     
     // Set up physics body position if exists
     if (physicsBody) {
-      physicsBody.position.set(
-        visualMesh.position.x, 
-        (type === 'building') ? visualMesh.position.y : (type === 'hydrant' ? 0.5 : (type === 'lamp' ? 1.75 : (type === 'street_light' ? 2.25 : (type === 'bench' ? 0.25 : (type === 'tycoon_button' ? 0.05 : 0.05))))), 
-        visualMesh.position.z
-      );
-      if (type !== 'road') {
+      let py = 0.05;
+      if (type === 'building') py = visualMesh.position.y;
+      else if (type === 'hydrant') py = 0.5;
+      else if (type === 'lamp') py = 1.75;
+      else if (type === 'street_light') py = 2.25;
+      else if (type === 'bench') py = 0.25;
+      else if (type === 'fountain') py = 0.25;
+      else if (type === 'pine_tree') py = 0.9;
+      else if (type === 'sign_no_parking') py = 1.25;
+      else if (type === 'tycoon_button') py = 0.05;
+      
+      physicsBody.position.set(visualMesh.position.x, py, visualMesh.position.z);
+      if (type !== 'road' && type !== 'road_roundabout') {
         physicsBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), this.rotationAngle);
       }
       this.game.physicsManager.addBody(physicsBody);
@@ -1315,61 +1328,49 @@ export class MapEditor {
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
     
-    // Asphalt base
-    ctx.fillStyle = '#22252a';
+    // 1. Fill entire background with grass color
+    const grassColor = (this.game.city && this.game.city.colors) ? this.game.city.colors.grass : '#a8d48a';
+    ctx.fillStyle = grassColor;
     ctx.fillRect(0, 0, 512, 512);
     
-    // Noise
-    for (let i = 0; i < 8000; i++) {
-        ctx.fillStyle = Math.random() > 0.5 ? '#1a1d21' : '#2a2e35';
-        ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+    // 2. Draw perfect asphalt outer circle (radius 256, touches edges)
+    ctx.beginPath();
+    ctx.arc(256, 256, 256, 0, Math.PI * 2);
+    ctx.fillStyle = '#22252a';
+    ctx.fill();
+    
+    // 3. Add noise inside the asphalt ring (only paint noise if distance from center is between 120 and 256)
+    for (let i = 0; i < 6000; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const dx = x - 256;
+        const dy = y - 256;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist >= 120 && dist <= 256) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#1a1d21' : '#2a2e35';
+            ctx.fillRect(x, y, 3, 3);
+        }
     }
     
-    // Central Grass Island
-    const grassColor = (this.game.city && this.game.city.colors) ? this.game.city.colors.grass : '#a8d48a';
+    // 4. Draw outer curb line (radius 250, white/light grey)
+    ctx.beginPath();
+    ctx.arc(256, 256, 250, 0, Math.PI * 2);
+    ctx.strokeStyle = '#dcdde1';
+    ctx.lineWidth = 10;
+    ctx.stroke();
+    
+    // 5. Draw central grass island (radius 120)
     ctx.beginPath();
     ctx.arc(256, 256, 120, 0, Math.PI * 2);
     ctx.fillStyle = grassColor;
     ctx.fill();
     
-    // Inner curb line (grey/white blocks pattern)
+    // 6. Draw inner curb line (radius 120, white/light grey)
     ctx.beginPath();
     ctx.arc(256, 256, 120, 0, Math.PI * 2);
     ctx.strokeStyle = '#dcdde1';
-    ctx.lineWidth = 14;
+    ctx.lineWidth = 10;
     ctx.stroke();
-
-    // Subtle dark line border
-    ctx.beginPath();
-    ctx.arc(256, 256, 127, 0, Math.PI * 2);
-    ctx.strokeStyle = '#1e252b';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    
-    // Outer border curb lines to round off corners
-    ctx.fillStyle = grassColor;
-    const corners = [
-      [0, 0, 0, 100, 100, 0],
-      [512, 0, 512, 100, 412, 0],
-      [0, 512, 0, 412, 100, 512],
-      [512, 512, 512, 412, 412, 512]
-    ];
-    for (const [x, y, tx, ty, bx, by] of corners) {
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(tx, ty);
-      ctx.arcTo(tx, ty, bx, by, 90);
-      ctx.lineTo(x, y);
-      ctx.fill();
-      
-      // Draw outer curb lines
-      ctx.beginPath();
-      ctx.moveTo(tx, ty);
-      ctx.arcTo(tx, ty, bx, by, 90);
-      ctx.strokeStyle = '#dcdde1';
-      ctx.lineWidth = 8;
-      ctx.stroke();
-    }
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
