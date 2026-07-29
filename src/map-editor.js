@@ -25,6 +25,13 @@ export class MapEditor {
     this.intersectionPoint = new THREE.Vector3();
     
     this.tileColorPickerGroup = document.getElementById('tile-color-picker-group');
+    this.tileScaleControlGroup = document.getElementById('tile-scale-control-group');
+    this.rangeTileW = document.getElementById('range-tile-w');
+    this.rangeTileD = document.getElementById('range-tile-d');
+    this.rangeTileH = document.getElementById('range-tile-h');
+    this.lblTileW = document.getElementById('lbl-tile-w');
+    this.lblTileD = document.getElementById('lbl-tile-d');
+    this.lblTileH = document.getElementById('lbl-tile-h');
     this.pickerTile = document.getElementById('picker-tile');
     this.selectedTileColor = '#ffffff';
     this.history = []; // History stack for Ctrl+Z undo
@@ -65,8 +72,10 @@ export class MapEditor {
           
           if (this.selectedProp === 'tile') {
             if (this.tileColorPickerGroup) this.tileColorPickerGroup.style.display = 'block';
+            if (this.tileScaleControlGroup) this.tileScaleControlGroup.style.display = 'block';
           } else {
             if (this.tileColorPickerGroup) this.tileColorPickerGroup.style.display = 'none';
+            if (this.tileScaleControlGroup) this.tileScaleControlGroup.style.display = 'none';
           }
           
           if (this.active && this.subMode === 'props') {
@@ -74,6 +83,17 @@ export class MapEditor {
           }
         });
       });
+      
+      // Tile scale slider listeners
+      const updateTileDimensions = (e, lbl) => {
+        if (lbl) lbl.textContent = e.target.value;
+        if (this.active && this.subMode === 'props' && this.selectedProp === 'tile') {
+          this.createGhost('tile');
+        }
+      };
+      if (this.rangeTileW) this.rangeTileW.addEventListener('input', (e) => updateTileDimensions(e, this.lblTileW));
+      if (this.rangeTileD) this.rangeTileD.addEventListener('input', (e) => updateTileDimensions(e, this.lblTileD));
+      if (this.rangeTileH) this.rangeTileH.addEventListener('input', (e) => updateTileDimensions(e, this.lblTileH));
     }
     
     // Brush buttons
@@ -239,7 +259,7 @@ export class MapEditor {
       const g = new THREE.Group();
       const p = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.5, 0.15), wireMat);
       p.position.y = 1.75;
-      const h = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.5, 0.6), wireMat);
+      const h = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 0.35), wireMat);
       h.position.y = 4.05;
       g.add(p, h);
       mesh = g;
@@ -333,8 +353,11 @@ export class MapEditor {
       g.add(b1, b2, b3);
       mesh = g;
     } else if (type === 'tile') {
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 2), wireMat);
-      mesh.position.y = 0.05;
+      const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 2;
+      const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 2;
+      const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 0.1;
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), wireMat);
+      mesh.position.y = th / 2;
     } else if (type === 'tycoon_button') {
       const g = new THREE.Group();
       const base = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.1, 16), wireMat);
@@ -489,7 +512,19 @@ export class MapEditor {
       const g = new THREE.Group();
       const p = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.5, 0.15), darkGrey);
       p.position.y = 1.75;
-      const h = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.5, 0.6), new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.game.city.createTrafficLightTexture() }));
+      
+      const tlMainMat  = new THREE.MeshBasicMaterial({ color: 0xffffff, map: this.game.city.createTrafficLightTexture() });
+      const tlBlackMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+      const tlMaterials = [
+        tlBlackMat, // +X
+        tlBlackMat, // -X
+        tlBlackMat, // +Y
+        tlBlackMat, // -Y
+        tlMainMat,  // +Z
+        tlMainMat   // -Z
+      ];
+      
+      const h = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 0.35), tlMaterials);
       h.position.y = 4.05;
       g.add(p, h);
       visualMesh = g;
@@ -569,11 +604,17 @@ export class MapEditor {
       // No physics collider for grass
     }
     else if (type === 'tile') {
-      visualMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 2), new THREE.MeshLambertMaterial({ color: this.selectedTileColor }));
-      visualMesh.position.y = 0.05;
+      const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 2;
+      const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 2;
+      const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 0.1;
+      
+      visualMesh = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), new THREE.MeshLambertMaterial({ color: this.selectedTileColor }));
+      visualMesh.position.y = th / 2;
+      
+      visualMesh.userData = { tileW: tw, tileD: td, tileH: th };
       
       physicsBody = new CANNON.Body({ mass: 0 });
-      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(1.0, 0.05, 1.0)));
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(tw / 2, th / 2, td / 2)));
     }
     else if (type === 'tycoon_button') {
       const g = new THREE.Group();
@@ -831,7 +872,7 @@ export class MapEditor {
     // Set up physics body position if exists
     if (physicsBody) {
       let py = 0.05;
-      if (type === 'building' || type === 'rumah' || type === 'ruko') py = visualMesh.position.y;
+      if (type === 'building' || type === 'rumah' || type === 'ruko' || type === 'tile') py = visualMesh.position.y;
       else if (type === 'hydrant') py = 0.5;
       else if (type === 'lamp') py = 1.75;
       else if (type === 'street_light') py = 2.25;
@@ -874,7 +915,8 @@ export class MapEditor {
       position: visualMesh.position.clone(),
       rotation: this.rotationAngle,
       height: (type === 'building') ? parseFloat(this.rangeHeight.value) : null,
-      color: (type === 'tile') ? this.selectedTileColor : (['building', 'rumah', 'ruko'].includes(type) ? visualMesh.userData.customColor : null)
+      color: (type === 'tile') ? this.selectedTileColor : (['building', 'rumah', 'ruko'].includes(type) ? visualMesh.userData.customColor : null),
+      tileScale: (type === 'tile') ? { w: visualMesh.userData.tileW, d: visualMesh.userData.tileD, h: visualMesh.userData.tileH } : null
     };
     
     this.placedObjects.push(placedObj);
@@ -1116,7 +1158,8 @@ export class MapEditor {
       position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
       rotation: obj.rotation,
       height: obj.height,
-      color: obj.color
+      color: obj.color,
+      tileScale: obj.tileScale
     }));
     
     const json = JSON.stringify(mapData, null, 2);
@@ -1158,8 +1201,13 @@ export class MapEditor {
         if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
           this.inputBldColor.value = data.color;
         }
-        if (data.type === 'tile' && data.color) {
-          this.selectedTileColor = data.color;
+        if (data.type === 'tile') {
+          if (data.color) this.selectedTileColor = data.color;
+          if (data.tileScale) {
+            if (this.rangeTileW) { this.rangeTileW.value = data.tileScale.w; this.lblTileW.textContent = data.tileScale.w; }
+            if (this.rangeTileD) { this.rangeTileD.value = data.tileScale.d; this.lblTileD.textContent = data.tileScale.d; }
+            if (this.rangeTileH) { this.rangeTileH.value = data.tileScale.h; this.lblTileH.textContent = data.tileScale.h; }
+          }
         }
         
         // Instantiate real objects
@@ -1187,7 +1235,8 @@ export class MapEditor {
         position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
         rotation: obj.rotation,
         height: obj.height,
-        color: obj.color
+        color: obj.color,
+        tileScale: obj.tileScale
       }))
     };
 
@@ -1258,8 +1307,13 @@ export class MapEditor {
       if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
         this.inputBldColor.value = data.color;
       }
-      if (data.type === 'tile' && data.color) {
-        this.selectedTileColor = data.color;
+      if (data.type === 'tile') {
+        if (data.color) this.selectedTileColor = data.color;
+        if (data.tileScale) {
+          if (this.rangeTileW) { this.rangeTileW.value = data.tileScale.w; this.lblTileW.textContent = data.tileScale.w; }
+          if (this.rangeTileD) { this.rangeTileD.value = data.tileScale.d; this.lblTileD.textContent = data.tileScale.d; }
+          if (this.rangeTileH) { this.rangeTileH.value = data.tileScale.h; this.lblTileH.textContent = data.tileScale.h; }
+        }
       }
       this.placeObject(data.type);
     });
