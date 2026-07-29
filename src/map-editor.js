@@ -293,8 +293,8 @@ export class MapEditor {
   onMouseMove(e) {
     if (!this.active || !this.ghostMesh) return;
     
-    // Ignore moves on UI panel
-    if (e.clientX > window.innerWidth - 340 && e.clientY > 60) return;
+    // Ignore moves on UI panel (now moved to the left side)
+    if (e.clientX < 340 && e.clientY > 60) return;
     
     this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -327,8 +327,8 @@ export class MapEditor {
   onMouseClick(e) {
     if (!this.active || !this.ghostMesh) return;
     
-    // Ignore clicks on UI
-    if (e.clientX > window.innerWidth - 340 && e.clientY > 60) return;
+    // Ignore clicks on UI (now moved to the left side)
+    if (e.clientX < 340 && e.clientY > 60) return;
     if (e.clientY < 60) return; // Top HUD clicks
     
     // Detect if mouse was dragged to rotate or pan camera. If so, ignore click to prevent spawning.

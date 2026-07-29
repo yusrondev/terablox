@@ -534,7 +534,7 @@ body {
 #editor-ui-container {
   position: absolute;
   top: 80px;
-  right: 20px;
+  left: 20px;
   width: 320px;
   max-height: calc(100vh - 120px);
   background: rgba(18, 24, 38, 0.85);
@@ -835,7 +835,7 @@ body {
 @media (max-width: 600px) {
   #editor-ui-container {
     width: calc(100vw - 40px);
-    right: 20px;
+    left: 20px;
     top: 70px;
     max-height: 50vh;
   }
