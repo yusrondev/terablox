@@ -15,6 +15,7 @@ export class MapEditor {
     this.rotationAngle = 0; // in radians
     
     this.placedObjects = [];
+    this.game.sceneManager.placedObjects = this.placedObjects;
     this.selectedObject = null;
     this.ghostMesh = null;
     
@@ -72,10 +73,15 @@ export class MapEditor {
           
           if (this.selectedProp === 'tile') {
             if (this.tileColorPickerGroup) this.tileColorPickerGroup.style.display = 'block';
-            if (this.tileScaleControlGroup) this.tileScaleControlGroup.style.display = 'block';
+            if (this.tileScaleControlGroup) {
+              this.tileScaleControlGroup.style.display = 'block';
+              this.adjustScaleSliders('tile');
+            }
           } else {
             if (this.tileColorPickerGroup) this.tileColorPickerGroup.style.display = 'none';
-            if (this.tileScaleControlGroup) this.tileScaleControlGroup.style.display = 'none';
+            if (!(this.subMode === 'city' && ['terrain_block', 'water', 'road_ramp'].includes(this.selectedBrush))) {
+              if (this.tileScaleControlGroup) this.tileScaleControlGroup.style.display = 'none';
+            }
           }
           
           if (this.active && this.subMode === 'props') {
@@ -84,11 +90,12 @@ export class MapEditor {
         });
       });
       
-      // Tile scale slider listeners
+      // Tile/object scale slider listeners
       const updateTileDimensions = (e, lbl) => {
         if (lbl) lbl.textContent = e.target.value;
-        if (this.active && this.subMode === 'props' && this.selectedProp === 'tile') {
-          this.createGhost('tile');
+        const activeBrush = (this.subMode === 'props' ? this.selectedProp : this.selectedBrush);
+        if (this.active && ['tile', 'terrain_block', 'water', 'road_ramp'].includes(activeBrush)) {
+          this.createGhost(activeBrush);
         }
       };
       if (this.rangeTileW) this.rangeTileW.addEventListener('input', (e) => updateTileDimensions(e, this.lblTileW));
@@ -113,6 +120,17 @@ export class MapEditor {
             }
           } else {
             this.heightControlGroup.style.display = 'none';
+          }
+          
+          if (['terrain_block', 'water', 'road_ramp'].includes(this.selectedBrush)) {
+            if (this.tileScaleControlGroup) {
+              this.tileScaleControlGroup.style.display = 'block';
+              this.adjustScaleSliders(this.selectedBrush);
+            }
+          } else {
+            if (!(this.subMode === 'props' && this.selectedProp === 'tile')) {
+              if (this.tileScaleControlGroup) this.tileScaleControlGroup.style.display = 'none';
+            }
           }
           
           if (this.active && this.subMode === 'city') {
@@ -187,6 +205,55 @@ export class MapEditor {
       if (swatches.length > 0) swatches[swatches.length - 1].classList.add('active');
     }
   }
+
+  adjustScaleSliders(type) {
+    if (!this.rangeTileW || !this.rangeTileD || !this.rangeTileH) return;
+    
+    const label = this.tileScaleControlGroup.querySelector('label');
+    
+    if (type === 'tile') {
+      label.textContent = 'Tile Dimensions';
+      this.rangeTileW.min = 1; this.rangeTileW.max = 20; this.rangeTileW.step = 1;
+      this.rangeTileD.min = 1; this.rangeTileD.max = 20; this.rangeTileD.step = 1;
+      this.rangeTileH.min = 0.1; this.rangeTileH.max = 5.0; this.rangeTileH.step = 0.1;
+      
+      this.rangeTileW.value = 2;
+      this.rangeTileD.value = 2;
+      this.rangeTileH.value = 0.1;
+    } else if (type === 'terrain_block') {
+      label.textContent = 'Hill Dimensions';
+      this.rangeTileW.min = 2; this.rangeTileW.max = 40; this.rangeTileW.step = 2;
+      this.rangeTileD.min = 2; this.rangeTileD.max = 40; this.rangeTileD.step = 2;
+      this.rangeTileH.min = 0.5; this.rangeTileH.max = 20.0; this.rangeTileH.step = 0.5;
+      
+      this.rangeTileW.value = 10;
+      this.rangeTileD.value = 10;
+      this.rangeTileH.value = 2.0;
+    } else if (type === 'water') {
+      label.textContent = 'Water Dimensions';
+      this.rangeTileW.min = 2; this.rangeTileW.max = 40; this.rangeTileW.step = 2;
+      this.rangeTileD.min = 2; this.rangeTileD.max = 40; this.rangeTileD.step = 2;
+      this.rangeTileH.min = 0.5; this.rangeTileH.max = 10.0; this.rangeTileH.step = 0.5;
+      
+      this.rangeTileW.value = 10;
+      this.rangeTileD.value = 10;
+      this.rangeTileH.value = 1.9;
+    } else if (type === 'road_ramp') {
+      label.textContent = 'Ramp Dimensions';
+      this.rangeTileW.min = 2; this.rangeTileW.max = 40; this.rangeTileW.step = 2;
+      this.rangeTileD.min = 2; this.rangeTileD.max = 40; this.rangeTileD.step = 2;
+      this.rangeTileH.min = 0.5; this.rangeTileH.max = 10.0; this.rangeTileH.step = 0.5;
+      
+      this.rangeTileW.value = 10;
+      this.rangeTileD.value = 10;
+      this.rangeTileH.value = 2.0;
+    }
+    
+    // Update label displays
+    if (this.lblTileW) this.lblTileW.textContent = this.rangeTileW.value;
+    if (this.lblTileD) this.lblTileD.textContent = this.rangeTileD.value;
+    if (this.lblTileH) this.lblTileH.textContent = this.rangeTileH.value;
+  }
   
   setupListeners() {
     this.onMouseMove = this.onMouseMove.bind(this);
@@ -235,6 +302,10 @@ export class MapEditor {
     if (this.ghostMesh) {
       this.game.sceneManager.scene.remove(this.ghostMesh);
       this.ghostMesh = null;
+    }
+    
+    if (this.tileScaleControlGroup) {
+      this.tileScaleControlGroup.style.display = 'none';
     }
   }
   
@@ -356,8 +427,11 @@ export class MapEditor {
       const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 2;
       const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 2;
       const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 0.1;
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), wireMat);
-      mesh.position.y = th / 2;
+      const g = new THREE.Group();
+      const m = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), wireMat);
+      m.position.y = th / 2;
+      g.add(m);
+      mesh = g;
     } else if (type === 'tycoon_button') {
       const g = new THREE.Group();
       const base = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.1, 16), wireMat);
@@ -367,9 +441,42 @@ export class MapEditor {
       g.add(base, btn);
       mesh = g;
     } else if (type === 'road' || type === 'road_roundabout') {
-      mesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), wireMat);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.position.y = 0.01;
+      const g = new THREE.Group();
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), wireMat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = 0.01;
+      g.add(m);
+      mesh = g;
+    } else if (type === 'terrain_block') {
+      const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 10;
+      const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 10;
+      const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 2.0;
+      const g = new THREE.Group();
+      const m = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), wireMat);
+      m.position.y = th / 2;
+      g.add(m);
+      mesh = g;
+    } else if (type === 'water') {
+      const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 10;
+      const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 10;
+      const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 1.9;
+      const g = new THREE.Group();
+      const wMesh = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), wireMat);
+      wMesh.position.y = th / 2;
+      wMesh.name = 'water_tile';
+      g.add(wMesh);
+      mesh = g;
+    } else if (type === 'road_ramp') {
+      const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 10;
+      const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 10;
+      const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 2.0;
+      const g = new THREE.Group();
+      const slopeLength = Math.sqrt(td * td + th * th);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.1, slopeLength), wireMat);
+      m.rotation.x = -Math.atan2(th, td);
+      m.position.set(0, th / 2, 0);
+      g.add(m);
+      mesh = g;
     } else if (type === 'building' || type === 'rumah' || type === 'ruko') {
       const g = new THREE.Group();
       const bldColor = this.inputBldColor ? this.inputBldColor.value : '#ffb7b2';
@@ -420,20 +527,52 @@ export class MapEditor {
     
     this.raycaster.setFromCamera(this.mouse, this.game.cameraManager.camera);
     
-    // Find intersection with the horizontal y=0 plane
+    // 1. Find intersection with the horizontal y=0 plane for base mouse projection
     this.raycaster.ray.intersectPlane(this.groundPlane, this.intersectionPoint);
     
     // Calculate position with snap-to-grid
     let x = this.intersectionPoint.x;
     let z = this.intersectionPoint.z;
     
+    const snap = (this.subMode === 'city') ? 10.0 : this.snapSize; // Larger snap for city builder tiles
     if (this.snapEnabled) {
-      const snap = (this.subMode === 'city') ? 10.0 : this.snapSize; // Larger snap for city builder tiles
       x = Math.round(x / snap) * snap;
       z = Math.round(z / snap) * snap;
     }
     
+    // 2. Perform downward vertical raycasting at snapped (x, z) to get the top surface of the terrain
+    let targetY = 0;
+    
+    // Collect all ground-like meshes to intersect
+    const groundTypes = ['tile', 'road', 'road_roundabout', 'road_ramp', 'water', 'terrain_block'];
+    const groundMeshes = [];
+    
+    this.placedObjects.forEach(obj => {
+      if (groundTypes.includes(obj.type) && obj.mesh) {
+        groundMeshes.push(obj.mesh);
+      }
+    });
+    if (this.game.city && this.game.city.groundMesh) {
+      groundMeshes.push(this.game.city.groundMesh);
+    }
+    
+    // Hide ghost mesh temporarily to prevent raycast collision with self
+    const oldVisible = this.ghostMesh.visible;
+    this.ghostMesh.visible = false;
+    
+    const downRaycaster = new THREE.Raycaster(
+      new THREE.Vector3(x, 200, z),
+      new THREE.Vector3(0, -1, 0)
+    );
+    const intersects = downRaycaster.intersectObjects(groundMeshes, true);
+    if (intersects.length > 0) {
+      targetY = intersects[0].point.y;
+    }
+    
+    this.ghostMesh.visible = oldVisible;
+    
     this.ghostMesh.position.x = x;
+    this.ghostMesh.position.y = targetY;
     this.ghostMesh.position.z = z;
     this.ghostMesh.rotation.y = this.rotationAngle;
   }
@@ -608,13 +747,15 @@ export class MapEditor {
       const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 2;
       const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 0.1;
       
-      visualMesh = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), new THREE.MeshLambertMaterial({ color: this.selectedTileColor }));
-      visualMesh.position.y = th / 2;
-      
+      const g = new THREE.Group();
+      const m = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), new THREE.MeshLambertMaterial({ color: this.selectedTileColor }));
+      m.position.y = th / 2;
+      g.add(m);
+      visualMesh = g;
       visualMesh.userData = { tileW: tw, tileD: td, tileH: th };
       
-      physicsBody = new CANNON.Body({ mass: 0 });
-      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(tw / 2, th / 2, td / 2)));
+      physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(tw / 2, th / 2, td / 2)), new CANNON.Vec3(0, th / 2, 0));
     }
     else if (type === 'tycoon_button') {
       const g = new THREE.Group();
@@ -731,15 +872,92 @@ export class MapEditor {
       physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(1.8, 0.25, 1.8)));
     }
     else if (type === 'road' || type === 'road_roundabout') {
-      visualMesh = new THREE.Mesh(
+      const g = new THREE.Group();
+      const m = new THREE.Mesh(
         new THREE.PlaneGeometry(10, 10),
         new THREE.MeshLambertMaterial({ 
           color: 0xffffff, 
           map: type === 'road' ? this.createRoadTexture() : this.createRoundaboutTexture() 
         })
       );
-      visualMesh.rotation.x = -Math.PI / 2;
-      visualMesh.position.y = 0.01;
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = 0.01;
+      g.add(m);
+      visualMesh = g;
+    } 
+    else if (type === 'terrain_block') {
+      const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 10;
+      const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 10;
+      const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 2.0;
+      
+      const g = new THREE.Group();
+      
+      // Grass top
+      const grassMat = new THREE.MeshLambertMaterial({ color: 0x7fc97f });
+      const grassMesh = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.1, td), grassMat);
+      grassMesh.position.y = th - 0.05;
+      
+      // Dirt base
+      const dirtMat = new THREE.MeshLambertMaterial({ color: 0x8d6e63 });
+      const dirtMesh = new THREE.Mesh(new THREE.BoxGeometry(tw - 0.1, th - 0.1, td - 0.1), dirtMat);
+      dirtMesh.position.y = (th - 0.1) / 2;
+      
+      g.add(grassMesh, dirtMesh);
+      visualMesh = g;
+      visualMesh.userData = { tileW: tw, tileD: td, tileH: th };
+      
+      physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(tw / 2, th / 2, td / 2)), new CANNON.Vec3(0, th / 2, 0));
+    }
+    else if (type === 'water') {
+      const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 10;
+      const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 10;
+      const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 1.9;
+      
+      const g = new THREE.Group();
+      const waterMat = new THREE.MeshStandardMaterial({
+        color: 0x2980b9,
+        transparent: true,
+        opacity: 0.7,
+        roughness: 0.1,
+        metalness: 0.1
+      });
+      const waterMesh = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), waterMat);
+      waterMesh.position.y = th / 2;
+      waterMesh.name = 'water_tile';
+      g.add(waterMesh);
+      visualMesh = g;
+      visualMesh.userData = { tileW: tw, tileD: td, tileH: th };
+    }
+    else if (type === 'road_ramp') {
+      const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 10;
+      const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 10;
+      const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 2.0;
+      
+      const g = new THREE.Group();
+      const theta = Math.atan2(th, td);
+      const slopeLength = Math.sqrt(td * td + th * th);
+      
+      const roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createRoadTexture() });
+      const surface = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.1, slopeLength), roadMat);
+      surface.rotation.x = -theta;
+      surface.position.set(0, th / 2, 0);
+      
+      const borderMat = new THREE.MeshLambertMaterial({ color: 0xbdc3c7 });
+      const borderL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, slopeLength), borderMat);
+      borderL.rotation.x = -theta;
+      borderL.position.set(-tw / 2 + 0.1, th / 2 + 0.05, 0);
+      
+      const borderR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, slopeLength), borderMat);
+      borderR.rotation.x = -theta;
+      borderR.position.set(tw / 2 - 0.1, th / 2 + 0.05, 0);
+      
+      g.add(surface, borderL, borderR);
+      visualMesh = g;
+      visualMesh.userData = { tileW: tw, tileD: td, tileH: th };
+      
+      physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(tw / 2, 0.1, slopeLength / 2)), new CANNON.Vec3(0, th / 2, 0));
     } 
     else if (type === 'building' || type === 'rumah' || type === 'ruko') {
       const g = new THREE.Group();
@@ -847,13 +1065,13 @@ export class MapEditor {
       }
       
       visualMesh = g;
-      visualMesh.position.y = 0;
     }
     
     // Set position and rotation
     visualMesh.position.x = this.ghostMesh.position.x;
+    visualMesh.position.y = this.ghostMesh.position.y;
     visualMesh.position.z = this.ghostMesh.position.z;
-    if (type !== 'road') {
+    if (type !== 'road' && type !== 'road_roundabout') {
       visualMesh.rotation.y = this.rotationAngle;
     }
     
@@ -871,19 +1089,27 @@ export class MapEditor {
     
     // Set up physics body position if exists
     if (physicsBody) {
-      let py = 0.05;
-      if (type === 'building' || type === 'rumah' || type === 'ruko' || type === 'tile') py = visualMesh.position.y;
-      else if (type === 'hydrant') py = 0.5;
-      else if (type === 'lamp') py = 1.75;
-      else if (type === 'street_light') py = 2.25;
-      else if (type === 'bench') py = 0.25;
-      else if (type === 'fountain') py = 0.25;
-      else if (type === 'pine_tree') py = 0.9;
-      else if (type === 'sign_no_parking') py = 1.25;
-      else if (type === 'tycoon_button') py = 0.05;
+      let py = visualMesh.position.y;
+      if (type === 'hydrant') py += 0.5;
+      else if (type === 'lamp') py += 1.75;
+      else if (type === 'street_light') py += 2.25;
+      else if (type === 'bench') py += 0.25;
+      else if (type === 'fountain') py += 0.25;
+      else if (type === 'pine_tree') py += 0.9;
+      else if (type === 'sign_no_parking') py += 1.25;
+      else if (type === 'tycoon_button') py += 0.05;
       
       physicsBody.position.set(visualMesh.position.x, py, visualMesh.position.z);
-      if (type !== 'road' && type !== 'road_roundabout') {
+      if (type === 'road_ramp') {
+        const td = visualMesh.userData.tileD;
+        const th = visualMesh.userData.tileH;
+        const qYaw = new CANNON.Quaternion();
+        qYaw.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), this.rotationAngle);
+        const qPitch = new CANNON.Quaternion();
+        qPitch.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.atan2(th, td));
+        physicsBody.quaternion = qYaw.mult(qPitch);
+      }
+      else if (type !== 'road' && type !== 'road_roundabout') {
         physicsBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), this.rotationAngle);
       }
       this.game.physicsManager.addBody(physicsBody);
@@ -916,7 +1142,7 @@ export class MapEditor {
       rotation: this.rotationAngle,
       height: (type === 'building') ? parseFloat(this.rangeHeight.value) : null,
       color: (type === 'tile') ? this.selectedTileColor : (['building', 'rumah', 'ruko'].includes(type) ? visualMesh.userData.customColor : null),
-      tileScale: (type === 'tile') ? { w: visualMesh.userData.tileW, d: visualMesh.userData.tileD, h: visualMesh.userData.tileH } : null
+      tileScale: ['tile', 'terrain_block', 'water', 'road_ramp'].includes(type) ? { w: visualMesh.userData.tileW, d: visualMesh.userData.tileD, h: visualMesh.userData.tileH } : null
     };
     
     this.placedObjects.push(placedObj);
@@ -1201,8 +1427,8 @@ export class MapEditor {
         if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
           this.inputBldColor.value = data.color;
         }
-        if (data.type === 'tile') {
-          if (data.color) this.selectedTileColor = data.color;
+        if (['tile', 'terrain_block', 'water', 'road_ramp'].includes(data.type)) {
+          if (data.type === 'tile' && data.color) this.selectedTileColor = data.color;
           if (data.tileScale) {
             if (this.rangeTileW) { this.rangeTileW.value = data.tileScale.w; this.lblTileW.textContent = data.tileScale.w; }
             if (this.rangeTileD) { this.rangeTileD.value = data.tileScale.d; this.lblTileD.textContent = data.tileScale.d; }
@@ -1307,8 +1533,8 @@ export class MapEditor {
       if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
         this.inputBldColor.value = data.color;
       }
-      if (data.type === 'tile') {
-        if (data.color) this.selectedTileColor = data.color;
+      if (['tile', 'terrain_block', 'water', 'road_ramp'].includes(data.type)) {
+        if (data.type === 'tile' && data.color) this.selectedTileColor = data.color;
         if (data.tileScale) {
           if (this.rangeTileW) { this.rangeTileW.value = data.tileScale.w; this.lblTileW.textContent = data.tileScale.w; }
           if (this.rangeTileD) { this.rangeTileD.value = data.tileScale.d; this.lblTileD.textContent = data.tileScale.d; }
@@ -1578,6 +1804,16 @@ export class MapEditor {
           drop.scale.set(sc, sc, sc);
         });
       }
+      
+      // Animate water tiles
+      if (obj.type === 'water' && obj.mesh) {
+        const wMesh = obj.mesh.getObjectByName('water_tile');
+        if (wMesh) {
+          if (!obj.waterTime) obj.waterTime = Math.random() * 100;
+          obj.waterTime += dt * 2.0;
+          wMesh.position.y = 0.95 + Math.sin(obj.waterTime) * 0.04;
+        }
+      }
     });
 
     // Animate active ghost if it's a fountain
@@ -1592,6 +1828,17 @@ export class MapEditor {
         const sc = 0.85 + wave * 0.25;
         drop.scale.set(sc, sc, sc);
       });
+    }
+
+    // Animate active ghost if it's water
+    const activeBrush = (this.subMode === 'props') ? this.selectedProp : this.selectedBrush;
+    if (this.ghostMesh && activeBrush === 'water') {
+      const wMesh = this.ghostMesh.getObjectByName('water_tile');
+      if (wMesh) {
+        if (!this.ghostWaterTime) this.ghostWaterTime = 0;
+        this.ghostWaterTime += dt * 2.0;
+        wMesh.position.y = 0.95 + Math.sin(this.ghostWaterTime) * 0.04;
+      }
     }
   }
 }

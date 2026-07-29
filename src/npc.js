@@ -92,7 +92,7 @@ class NPC {
     this.body = new CANNON.Body({
       mass: 40,
       fixedRotation: true,
-      linearDamping: 0.99,
+      linearDamping: 0.05, // Normal low damping to allow realistic gravity/falling
       material: this.physicsManager.defaultMaterial,
       allowSleep: false,
     });
@@ -102,6 +102,30 @@ class NPC {
   }
   
   update(deltaTime) {
+    // Water detection
+    const placedObjects = this.sceneManager.placedObjects || [];
+    const waterTiles = placedObjects.filter(obj => obj.type === 'water');
+    let inWater = false;
+    let waterY = 0;
+    
+    const px = this.body.position.x;
+    const pz = this.body.position.z;
+    const py = this.body.position.y;
+    
+    for (let i = 0; i < waterTiles.length; i++) {
+      const w = waterTiles[i];
+      const hw = w.tileScale ? w.tileScale.w / 2 : 5;
+      const hd = w.tileScale ? w.tileScale.d / 2 : 5;
+      const wh = w.tileScale ? w.tileScale.h : 1.95;
+      if (Math.abs(px - w.position.x) < hw && Math.abs(pz - w.position.z) < hd) {
+        waterY = w.position.y + wh; // Top of the water block
+        if (py < waterY) {
+          inWater = true;
+          break;
+        }
+      }
+    }
+
     this.changeDirTimer -= deltaTime;
     if (this.changeDirTimer <= 0) {
       if (Math.random() > 0.3) {
@@ -115,9 +139,36 @@ class NPC {
     }
     
     if (this.state === 'walk') {
-      this.body.velocity.x = this.direction.x * this.speed;
-      this.body.velocity.z = this.direction.z * this.speed;
+      let finalSpeed = this.speed;
+      if (inWater) finalSpeed *= 0.45; // Swim slower
+      this.body.velocity.x = this.direction.x * finalSpeed;
+      this.body.velocity.z = this.direction.z * finalSpeed;
       this.mesh.rotation.y = Math.atan2(this.direction.x, this.direction.z);
+    } else {
+      // Dampen horizontal velocity when idle. Very low damp (0.1) stops the NPC instantly.
+      let damp = inWater ? 0.82 : 0.1;
+      this.body.velocity.x *= damp;
+      this.body.velocity.z *= damp;
+    }
+    
+    if (inWater) {
+      // Water drag/friction
+      this.body.velocity.x *= 0.82;
+      this.body.velocity.z *= 0.82;
+      if (this.body.velocity.y < -1.5) {
+        this.body.velocity.y *= 0.82;
+      }
+      
+      // Floating force
+      const depth = waterY - py;
+      // Float at chest height (approx 0.8m submerged). NPC mass is 40, gravity force is 800.
+      const buoyancyForceY = Math.min(Math.max(0, depth) * 1000, 1100);
+      this.body.force.y += buoyancyForceY;
+      
+      // Swim up randomly
+      if (depth > 0.8 && Math.random() < 0.05) {
+        this.body.velocity.y = 2.5;
+      }
     }
     
     // Sync mesh — same as player: body.position IS the foot level
@@ -127,14 +178,43 @@ class NPC {
       this.body.position.z
     );
     
+    // Out of bounds check (fall-off protection)
+    if (this.body.position.y < -15) {
+      const rx = (Math.random() - 0.5) * 20;
+      const rz = (Math.random() - 0.5) * 20;
+      this.body.position.set(rx, 5, rz);
+      this.body.velocity.set(0, 0, 0);
+    }
+    
     // Animation
-    if (this.state === 'walk') {
+    if (inWater) {
+      if (this.state === 'walk') {
+        this.animTime += deltaTime * 10;
+        const s = Math.sin(this.animTime);
+        this.leftArm.rotation.x = -Math.PI / 2.5 + s * 0.8;
+        this.rightArm.rotation.x = -Math.PI / 2.5 - s * 0.8;
+        this.leftLeg.rotation.x = s * 0.4;
+        this.rightLeg.rotation.x = -s * 0.4;
+      } else {
+        this.animTime += deltaTime * 2.0;
+        const s = Math.sin(this.animTime) * 0.15;
+        this.leftArm.rotation.x = -0.4 + s;
+        this.rightArm.rotation.x = -0.4 - s;
+        this.leftLeg.rotation.x = 0.2 + s * 0.5;
+        this.rightLeg.rotation.x = 0.2 - s * 0.5;
+      }
+    } else if (this.state === 'walk') {
       this.animTime += deltaTime * 8;
       const s = Math.sin(this.animTime) * 0.5;
       this.leftArm.rotation.x  =  s;
       this.rightArm.rotation.x = -s;
       this.leftLeg.rotation.x  = -s;
       this.rightLeg.rotation.x =  s;
+    } else {
+      this.leftArm.rotation.x = 0;
+      this.rightArm.rotation.x = 0;
+      this.leftLeg.rotation.x = 0;
+      this.rightLeg.rotation.x = 0;
     }
   }
 }

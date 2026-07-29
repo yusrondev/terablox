@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>Roblox Style 3D Game</title>
+    <title>Shape Universe</title>
     <link rel="stylesheet" href="./style.css">
   </head>
   <body>
@@ -150,22 +150,7 @@
               <div class="color-picker-grid" id="picker-tile"></div>
             </div>
             
-            <!-- Tile Scale Selector (shows when tile selected) -->
-            <div class="control-group" id="tile-scale-control-group" style="display: none; margin-top: 10px; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px;">
-              <label style="color: #3b82f6; font-weight: bold; margin-bottom: 8px;">Tile Dimensions</label>
-              <div style="margin-bottom: 8px;">
-                <label style="display: flex; justify-content: space-between; font-size: 11px;">Width (X): <span id="lbl-tile-w">2</span>m</label>
-                <input type="range" id="range-tile-w" min="1" max="20" value="2" style="width: 100%;">
-              </div>
-              <div style="margin-bottom: 8px;">
-                <label style="display: flex; justify-content: space-between; font-size: 11px;">Length (Z): <span id="lbl-tile-d">2</span>m</label>
-                <input type="range" id="range-tile-d" min="1" max="20" value="2" style="width: 100%;">
-              </div>
-              <div>
-                <label style="display: flex; justify-content: space-between; font-size: 11px;">Height (Y): <span id="lbl-tile-h">0.1</span>m</label>
-                <input type="range" id="range-tile-h" min="0.1" max="5.0" step="0.1" value="0.1" style="width: 100%;">
-              </div>
-            </div>
+
             
             <div class="prop-manipulation-info">
               <p><strong>Controls:</strong></p>
@@ -192,6 +177,9 @@
             <div class="brush-selector">
               <button class="brush-btn active" data-brush="road">Paint Road</button>
               <button class="brush-btn" data-brush="road_roundabout">Paint Roundabout</button>
+              <button class="brush-btn" data-brush="terrain_block">Paint Hill</button>
+              <button class="brush-btn" data-brush="water">Paint Water</button>
+              <button class="brush-btn" data-brush="road_ramp">Paint Road Ramp</button>
               <button class="brush-btn" data-brush="building">Drop Gedung</button>
               <button class="brush-btn" data-brush="rumah">Drop Rumah</button>
               <button class="brush-btn" data-brush="ruko">Drop Ruko</button>
@@ -215,6 +203,22 @@
                <button id="btn-export-map" class="editor-action-btn sec-btn">Export Map JSON</button>
                <button id="btn-import-map" class="editor-action-btn sec-btn">Import Map JSON</button>
              </div>
+          </div>
+          <!-- Shared Object Scale Selector -->
+          <div class="control-group" id="tile-scale-control-group" style="display: none; margin-top: 10px; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px;">
+            <label style="color: #3b82f6; font-weight: bold; margin-bottom: 8px;">Object Dimensions</label>
+            <div style="margin-bottom: 8px;">
+              <label style="display: flex; justify-content: space-between; font-size: 11px;">Width (X): <span id="lbl-tile-w">2</span>m</label>
+              <input type="range" id="range-tile-w" min="1" max="20" value="2" style="width: 100%;">
+            </div>
+            <div style="margin-bottom: 8px;">
+              <label style="display: flex; justify-content: space-between; font-size: 11px;">Length (Z): <span id="lbl-tile-d">2</span>m</label>
+              <input type="range" id="range-tile-d" min="1" max="20" value="2" style="width: 100%;">
+            </div>
+            <div>
+              <label style="display: flex; justify-content: space-between; font-size: 11px;">Height (Y): <span id="lbl-tile-h">0.1</span>m</label>
+              <input type="range" id="range-tile-h" min="0.1" max="5.0" step="0.1" value="0.1" style="width: 100%;">
+            </div>
           </div>
         </div>
       </div>

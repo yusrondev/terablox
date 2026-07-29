@@ -114,7 +114,7 @@ export class Player {
     this.body = new CANNON.Body({
       mass: 60,
       fixedRotation: true,
-      linearDamping: 0.99, // Very high damping — stops instantly when no input
+      linearDamping: 0.05, // Normal low damping to allow realistic gravity/falling
       material: this.physicsManager.defaultMaterial,
       allowSleep: false, // Player must never sleep
     });
@@ -144,6 +144,30 @@ export class Player {
     const moving = (input.x !== 0 || input.z !== 0);
     const sprinting = this.controlsManager.keys.sprint;
     const speed = sprinting ? this.speed * this.sprintMultiplier : this.speed;
+    
+    // Water detection
+    const placedObjects = this.sceneManager.placedObjects || [];
+    const waterTiles = placedObjects.filter(obj => obj.type === 'water');
+    let inWater = false;
+    let waterY = 0;
+    
+    const px = this.body.position.x;
+    const pz = this.body.position.z;
+    const py = this.body.position.y;
+    
+    for (let i = 0; i < waterTiles.length; i++) {
+      const w = waterTiles[i];
+      const hw = w.tileScale ? w.tileScale.w / 2 : 5;
+      const hd = w.tileScale ? w.tileScale.d / 2 : 5;
+      const wh = w.tileScale ? w.tileScale.h : 1.95;
+      if (Math.abs(px - w.position.x) < hw && Math.abs(pz - w.position.z) < hd) {
+        waterY = w.position.y + wh; // Top of the water block
+        if (py < waterY) {
+          inWater = true;
+          break;
+        }
+      }
+    }
     
     // Jump to unsit
     if (this.state === 'sitting' && (this.controlsManager.keys.jump || moving)) {
@@ -182,8 +206,11 @@ export class Player {
         }
       }
       
-      this.body.velocity.x = this._moveDir.x * speed;
-      this.body.velocity.z = this._moveDir.z * speed;
+      let finalSpeed = speed;
+      if (inWater) finalSpeed *= 0.45; // Swim slower in water
+      
+      this.body.velocity.x = this._moveDir.x * finalSpeed;
+      this.body.velocity.z = this._moveDir.z * finalSpeed;
       
       // Smooth rotate mesh toward movement direction
       const targetAngle = Math.atan2(this._moveDir.x, this._moveDir.z);
@@ -193,12 +220,32 @@ export class Player {
       while (diff < -Math.PI) diff += Math.PI * 2;
       this.mesh.rotation.y += diff * 0.2;
     } else {
-      // Dampen horizontal velocity when no input
-      this.body.velocity.x *= 0.8;
-      this.body.velocity.z *= 0.8;
+      // Dampen horizontal velocity when no input. Very low damp (0.1) stops the player instantly.
+      let damp = inWater ? 0.82 : 0.1;
+      this.body.velocity.x *= damp;
+      this.body.velocity.z *= damp;
     }
     
-    // Jump
+    if (inWater) {
+      // 1. Water drag/friction
+      if (this.body.velocity.y < -1.5) {
+        this.body.velocity.y *= 0.82;
+      }
+      
+      // 2. Buoyant floating force
+      const depth = waterY - py;
+      // Float at chest height (approx 1.1m submerged). Player mass is 60, gravity force is 1200.
+      const buoyancyForceY = Math.min(Math.max(0, depth) * 1100, 1500);
+      this.body.force.y += buoyancyForceY;
+      
+      // 3. Swimming upward controls (pressing spacebar/jump)
+      if (this.controlsManager.keys.jump && this.state !== 'sitting') {
+        this.body.velocity.y = 3.5;
+        this.controlsManager.keys.jump = false;
+      }
+    }
+    
+    // Jump (ground-based)
     if (this.controlsManager.keys.jump && this.canJump && this.state !== 'sitting') {
       this.body.velocity.y = this.jumpForce;
       this.canJump = false;
@@ -214,16 +261,43 @@ export class Player {
       this.mesh.position.y = this.body.position.y;
     }
     
-    this.updateAnimation(deltaTime, moving);
+    // Out of bounds check (fall-off protection)
+    if (this.body.position.y < -15) {
+      this.body.position.set(0, 5, 0);
+      this.body.velocity.set(0, 0, 0);
+    }
+    
+    this.updateAnimation(deltaTime, moving, inWater);
   }
   
-  updateAnimation(dt, moving) {
+  updateAnimation(dt, moving, inWater) {
     if (this.state === 'sitting') {
       // Sitting animation pose: legs bent 90 degrees forward, arms resting
       this.leftLeg.rotation.x = -Math.PI / 2;
       this.rightLeg.rotation.x = -Math.PI / 2;
       this.leftArm.rotation.x = 0;
       this.rightArm.rotation.x = 0;
+      return;
+    }
+    
+    if (inWater) {
+      if (moving) {
+        // Fast crawl stroke animation
+        this.animTime += dt * 10;
+        const s = Math.sin(this.animTime);
+        this.leftArm.rotation.x = -Math.PI / 2.5 + s * 0.8;
+        this.rightArm.rotation.x = -Math.PI / 2.5 - s * 0.8;
+        this.leftLeg.rotation.x = s * 0.4;
+        this.rightLeg.rotation.x = -s * 0.4;
+      } else {
+        // Gentle water treading float
+        this.animTime += dt * 2.0;
+        const s = Math.sin(this.animTime) * 0.15;
+        this.leftArm.rotation.x = -0.4 + s;
+        this.rightArm.rotation.x = -0.4 - s;
+        this.leftLeg.rotation.x = 0.2 + s * 0.5;
+        this.rightLeg.rotation.x = 0.2 - s * 0.5;
+      }
       return;
     }
     
