@@ -329,12 +329,9 @@ export class MapEditor {
       btn.position.y = 0.15;
       g.add(base, btn);
       mesh = g;
-    } else if (type === 'road') {
+    } else if (type === 'road' || type === 'road_roundabout') {
       mesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), wireMat);
       mesh.rotation.x = -Math.PI / 2;
-      mesh.position.y = 0.01;
-    } else if (type === 'road_roundabout') {
-      mesh = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.02, 32), wireMat);
       mesh.position.y = 0.01;
     } else if (type === 'building') {
       const h = parseFloat(this.rangeHeight.value);
@@ -653,19 +650,15 @@ export class MapEditor {
       physicsBody = new CANNON.Body({ mass: 0 });
       physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(1.8, 0.25, 1.8)));
     }
-    else if (type === 'road') {
+    else if (type === 'road' || type === 'road_roundabout') {
       visualMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(10, 10),
-        new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createRoadTexture() })
+        new THREE.MeshLambertMaterial({ 
+          color: 0xffffff, 
+          map: type === 'road' ? this.createRoadTexture() : this.createRoundaboutTexture() 
+        })
       );
       visualMesh.rotation.x = -Math.PI / 2;
-      visualMesh.position.y = 0.01;
-    }
-    else if (type === 'road_roundabout') {
-      visualMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(5, 5, 0.02, 32),
-        new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createRoundaboutTexture() })
-      );
       visualMesh.position.y = 0.01;
     } 
     else if (type === 'building') {
@@ -998,20 +991,25 @@ export class MapEditor {
     const meshes = this.placedObjects.map(obj => obj.mesh);
     const intersects = this.raycaster.intersectObjects(meshes, true);
     
-    if (intersects.length > 0) {
-      let hitMesh = intersects[0].object;
+    for (let i = 0; i < intersects.length; i++) {
+      let hitMesh = intersects[i].object;
       while (hitMesh.parent && hitMesh.parent !== this.game.sceneManager.scene) {
         hitMesh = hitMesh.parent;
       }
       
       const found = this.placedObjects.find(obj => obj.mesh === hitMesh);
       if (found) {
+        // If placing props, ignore clicks on ground/buildings to allow layering
+        if (this.subMode === 'props' && ['road', 'road_roundabout', 'tile', 'building'].includes(found.type)) {
+          continue; // check next intersected object
+        }
+        
         this.selectObject(found);
         return true;
       }
-    } else {
-      this.deselectObject();
     }
+    
+    this.deselectObject();
     return false;
   }
   
@@ -1351,65 +1349,26 @@ export class MapEditor {
         ctx.fillRect(x, y, 3, 3);
     }
     
-    // 3. Draw 4 grass quarter-circles at the corners (radius 80 to make entry wide and smooth)
-    ctx.fillStyle = grassColor;
-    const cornerRadius = 80;
-    
-    // Top-Left corner
+    // 3. Draw outer painted line to suggest the circular roundabout path
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, cornerRadius, 0, Math.PI / 2);
-    ctx.fill();
-    
-    // Top-Right corner
-    ctx.beginPath();
-    ctx.moveTo(512, 0);
-    ctx.arc(512, 0, cornerRadius, Math.PI / 2, Math.PI);
-    ctx.fill();
-    
-    // Bottom-Left corner
-    ctx.beginPath();
-    ctx.moveTo(0, 512);
-    ctx.arc(0, 512, cornerRadius, 1.5 * Math.PI, 2 * Math.PI);
-    ctx.fill();
-    
-    // Bottom-Right corner
-    ctx.beginPath();
-    ctx.moveTo(512, 512);
-    ctx.arc(512, 512, cornerRadius, Math.PI, 1.5 * Math.PI);
-    ctx.fill();
-
-    // 4. Draw outer curb lines along the grass corner curves
+    ctx.arc(256, 256, 240, 0, Math.PI * 2);
     ctx.strokeStyle = '#dcdde1';
-    ctx.lineWidth = 10;
-    
-    ctx.beginPath();
-    ctx.arc(0, 0, cornerRadius, 0, Math.PI / 2);
+    ctx.lineWidth = 6;
+    ctx.setLineDash([20, 20]); // dashed line for roundabout entry border
     ctx.stroke();
+    ctx.setLineDash([]); // reset line dash for next shapes
     
-    ctx.beginPath();
-    ctx.arc(512, 0, cornerRadius, Math.PI / 2, Math.PI);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.arc(0, 512, cornerRadius, 1.5 * Math.PI, 2 * Math.PI);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.arc(512, 512, cornerRadius, Math.PI, 1.5 * Math.PI);
-    ctx.stroke();
-    
-    // 5. Draw central grass island (radius 130)
+    // 4. Draw central grass island (radius 130)
     ctx.beginPath();
     ctx.arc(256, 256, 130, 0, Math.PI * 2);
     ctx.fillStyle = grassColor;
     ctx.fill();
     
-    // 6. Draw inner curb line
+    // 5. Draw inner curb line (solid white)
     ctx.beginPath();
     ctx.arc(256, 256, 130, 0, Math.PI * 2);
     ctx.strokeStyle = '#dcdde1';
-    ctx.lineWidth = 10;
+    ctx.lineWidth = 12;
     ctx.stroke();
     
     const texture = new THREE.CanvasTexture(canvas);
