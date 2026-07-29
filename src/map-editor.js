@@ -329,7 +329,7 @@ export class MapEditor {
       btn.position.y = 0.15;
       g.add(base, btn);
       mesh = g;
-    } else if (type === 'road') {
+    } else if (type === 'road' || type === 'road_roundabout') {
       mesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), wireMat);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.y = 0.01;
