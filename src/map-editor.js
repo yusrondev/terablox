@@ -278,8 +278,12 @@ export class MapEditor {
       mesh.position.y = 0.01;
     } else if (type === 'building') {
       const h = parseFloat(this.rangeHeight.value);
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(8, h, 8), wireMat);
-      mesh.position.y = h / 2;
+      const g = new THREE.Group();
+      const b = new THREE.Mesh(new THREE.BoxGeometry(8, h, 8), wireMat);
+      b.position.y = h / 2;
+      g.add(b);
+      mesh = g;
+      mesh.position.y = 0;
     }
     
     this.ghostMesh = mesh;
@@ -484,14 +488,74 @@ export class MapEditor {
       visualMesh.position.y = 0.01;
     } 
     else if (type === 'building') {
-      // Drop custom building
+      // Drop custom building with windows
       const h = parseFloat(this.rangeHeight.value);
       const bColor = this.game.city.colors.buildings[Math.floor(Math.random() * this.game.city.colors.buildings.length)];
-      visualMesh = new THREE.Mesh(
+      
+      const g = new THREE.Group();
+      const bodyMesh = new THREE.Mesh(
         new THREE.BoxGeometry(8, h, 8),
         new THREE.MeshLambertMaterial({ color: bColor })
       );
-      visualMesh.position.y = h / 2;
+      bodyMesh.position.y = h / 2;
+      bodyMesh.castShadow = true;
+      bodyMesh.receiveShadow = true;
+      g.add(bodyMesh);
+      
+      // Add windows (mirroring default procedural city architecture)
+      const floorSpacing = 2.8;
+      const startY = 2.0;
+      const endY = h - 1.2;
+      
+      const windowFrameGeo = new THREE.BoxGeometry(0.95, 1.35, 0.04);
+      const windowGeo      = new THREE.BoxGeometry(0.85, 1.25, 0.06);
+      
+      const frameMat = new THREE.MeshLambertMaterial({ color: 0x1a1d20 });
+      const winMat   = this.game.sceneManager.windowMaterial; // Emissive yellow glass material
+      
+      const cols = 3; // Fits nicely on 8m width (x = -2.0, 0.0, 2.0)
+      for (let wy = startY; wy <= endY; wy += floorSpacing) {
+        for (let col = 0; col < cols; col++) {
+          const wOffset = -2.0 + col * 2.0;
+          
+          // Front (+Z = 4.0)
+          const fFrame = new THREE.Mesh(windowFrameGeo, frameMat);
+          fFrame.position.set(wOffset, wy, 4.02);
+          const fWin = new THREE.Mesh(windowGeo, winMat);
+          fWin.position.set(wOffset, wy, 4.03);
+          g.add(fFrame, fWin);
+          
+          // Back (-Z = -4.0)
+          const bFrame = new THREE.Mesh(windowFrameGeo, frameMat);
+          bFrame.position.set(wOffset, wy, -4.02);
+          bFrame.rotation.y = Math.PI;
+          const bWin = new THREE.Mesh(windowGeo, winMat);
+          bWin.position.set(wOffset, wy, -4.03);
+          bWin.rotation.y = Math.PI;
+          g.add(bFrame, bWin);
+          
+          // Right (+X = 4.0)
+          const rFrame = new THREE.Mesh(windowFrameGeo, frameMat);
+          rFrame.position.set(4.02, wy, wOffset);
+          rFrame.rotation.y = Math.PI / 2;
+          const rWin = new THREE.Mesh(windowGeo, winMat);
+          rWin.position.set(4.03, wy, wOffset);
+          rWin.rotation.y = Math.PI / 2;
+          g.add(rFrame, rWin);
+          
+          // Left (-X = -4.0)
+          const lFrame = new THREE.Mesh(windowFrameGeo, frameMat);
+          lFrame.position.set(-4.02, wy, wOffset);
+          lFrame.rotation.y = -Math.PI / 2;
+          const lWin = new THREE.Mesh(windowGeo, winMat);
+          lWin.position.set(-4.03, wy, wOffset);
+          lWin.rotation.y = -Math.PI / 2;
+          g.add(lFrame, lWin);
+        }
+      }
+      
+      visualMesh = g;
+      visualMesh.position.y = 0;
       
       physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
       physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(4.0, h / 2, 4.0)));
