@@ -21,6 +21,105 @@
       <div id="hud">
         <div id="fps-counter">FPS: 0</div>
         <div id="coordinates">X: 0, Y: 0, Z: 0</div>
+        <button id="btn-editor-toggle">🛠️ Editor Studio</button>
+      </div>
+      
+      <!-- Game Studio Editor Panel -->
+      <div id="editor-ui-container" style="display: none;">
+        <div class="editor-tabs">
+          <button class="editor-tab-btn active" data-tab="character">👤 Character</button>
+          <button class="editor-tab-btn" data-tab="props">🪴 Props</button>
+          <button class="editor-tab-btn" data-tab="city">🏙️ City Builder</button>
+          <button id="btn-editor-exit" class="editor-exit-btn">❌ Close</button>
+        </div>
+
+        <div class="editor-content">
+          <!-- Character Tab -->
+          <div id="tab-character" class="editor-tab-panel active">
+            <h4>Character Customizer</h4>
+            <div class="control-group">
+              <label>Skin Color</label>
+              <div class="color-picker-grid" id="picker-skin"></div>
+            </div>
+            <div class="control-group">
+              <label>Shirt Color</label>
+              <div class="color-picker-grid" id="picker-shirt"></div>
+            </div>
+            <div class="control-group">
+              <label>Pants Color</label>
+              <div class="color-picker-grid" id="picker-pants"></div>
+            </div>
+            <div class="control-group">
+              <label>Accessory (Head)</label>
+              <select id="select-hat">
+                <option value="none">None</option>
+                <option value="cap">Cap</option>
+                <option value="crown">Crown</option>
+                <option value="horns">Demon Horns</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label>Accessory (Back)</label>
+              <select id="select-back">
+                <option value="none">None</option>
+                <option value="cape">Cape</option>
+                <option value="wings">Wings</option>
+              </select>
+            </div>
+            <button id="btn-save-char" class="editor-action-btn">Save Preset</button>
+          </div>
+
+          <!-- Props Tab -->
+          <div id="tab-props" class="editor-tab-panel">
+            <h4>Decoration & Props</h4>
+            <div class="snap-control">
+              <label><input type="checkbox" id="check-snap" checked> Snap to Grid (2m)</label>
+            </div>
+            <div class="props-catalog" id="props-catalog-list">
+              <div class="catalog-item active" data-prop="lamp">
+                <span class="icon">🚦</span>
+                <span class="name">Lamp Post</span>
+              </div>
+              <div class="catalog-item" data-prop="bench">
+                <span class="icon">🪑</span>
+                <span class="name">Bench</span>
+              </div>
+              <div class="catalog-item" data-prop="tree">
+                <span class="icon">🌳</span>
+                <span class="name">Tree</span>
+              </div>
+              <div class="catalog-item" data-prop="hydrant">
+                <span class="icon">🧯</span>
+                <span class="name">Hydrant</span>
+              </div>
+            </div>
+            <div class="prop-manipulation-info">
+              <p><strong>Controls:</strong></p>
+              <p>• Click on grid to Place</p>
+              <p>• Click Prop to Select</p>
+              <p>• Press <strong>R</strong> to Rotate</p>
+              <p>• Press <strong>Backspace/Del</strong> to Remove</p>
+            </div>
+          </div>
+
+          <!-- City Builder Tab -->
+          <div id="tab-city" class="editor-tab-panel">
+            <h4>City Builder</h4>
+            <div class="brush-selector">
+              <button class="brush-btn active" data-brush="road">Paint Road</button>
+              <button class="brush-btn" data-brush="building">Drop Building</button>
+              <button class="brush-btn" data-brush="clear">Erase Tile</button>
+            </div>
+            <div class="building-height-control" id="height-control-group" style="display: none; margin-top: 10px;">
+              <label>Building Height: <span id="lbl-bld-height">15</span>m</label>
+              <input type="range" id="range-bld-height" min="8" max="40" value="15" style="width: 100%;">
+            </div>
+            <div class="map-io-group">
+              <button id="btn-export-map" class="editor-action-btn">Export Map JSON</button>
+              <button id="btn-import-map" class="editor-action-btn sec-btn">Import Map JSON</button>
+            </div>
+          </div>
+        </div>
       </div>
       
       <!-- Dynamic Interaction Button -->

@@ -7,6 +7,7 @@ import { Player }          from './player.js';
 import { CityGenerator }   from './city.js';
 import { UIManager }       from './ui.js';
 import { NPCManager }      from './npc.js';
+import { EditorManager }   from './editor.js';
 
 export class Game {
   constructor() {
@@ -39,6 +40,8 @@ export class Game {
       }
     });
     
+    this.editorManager = new EditorManager(this);
+    
     this.loop = this.loop.bind(this);
   }
   
@@ -51,54 +54,66 @@ export class Game {
     const dt = Math.min((now - this.prevTime) / 1000, 0.05);
     this.prevTime = now;
     
-    // 1. Physics (fixed timestep internally)
-    this.physicsManager.step(dt);
+    const isEditing = this.editorManager && this.editorManager.activeMode === 'editor';
     
-    // 2. Game logic
-    this.player.update(dt);
-    this.npcManager.update(dt);
-    if (this.city && this.city.update) {
-      this.city.update(dt);
-    }
-    
-    // 3. Camera & Sun follow player
-    const camTarget = this.player.mesh.position.clone();
-    camTarget.y += 1.0; // look at chest/head level
-    this.cameraManager.update(camTarget, dt);
-    
-    this.sceneManager.updateSun(this.player.mesh.position);
-    this.sceneManager.updateWeather(dt, this.player.mesh.position);
-    
-    // 4. Interaction Proximity Check
-    let closestDist = Infinity;
-    let closestItem = null;
-    
-    if (this.player.state !== 'sitting') {
-      for (const item of this.sceneManager.interactables) {
-        const dist = this.player.mesh.position.distanceTo(item.position);
-        if (dist < 2.5 && dist < closestDist) {
-          closestDist = dist;
-          closestItem = item;
+    if (!isEditing) {
+      // 1. Physics (fixed timestep internally)
+      this.physicsManager.step(dt);
+      
+      // 2. Game logic
+      this.player.update(dt);
+      this.npcManager.update(dt);
+      if (this.city && this.city.update) {
+        this.city.update(dt);
+      }
+      
+      // 3. Camera & Sun follow player
+      const camTarget = this.player.mesh.position.clone();
+      camTarget.y += 1.0; // look at chest/head level
+      this.cameraManager.update(camTarget, dt);
+      
+      this.sceneManager.updateSun(this.player.mesh.position);
+      this.sceneManager.updateWeather(dt, this.player.mesh.position);
+      
+      // 4. Interaction Proximity Check
+      let closestDist = Infinity;
+      let closestItem = null;
+      
+      if (this.player.state !== 'sitting') {
+        for (const item of this.sceneManager.interactables) {
+          const dist = this.player.mesh.position.distanceTo(item.position);
+          if (dist < 2.5 && dist < closestDist) {
+            closestDist = dist;
+            closestItem = item;
+          }
         }
+      } else {
+        closestItem = this.currentInteractable;
+      }
+      
+      this.currentInteractable = closestItem;
+      
+      if (this.currentInteractable) {
+        const btnText = this.player.state === 'sitting' ? 'Berdiri' : 'Duduk';
+        this.uiManager.toggleInteractButton(true, btnText);
+      } else {
+        this.uiManager.toggleInteractButton(false);
       }
     } else {
-      // Keep reference to bench while sitting so the action button remains visible
-      closestItem = this.currentInteractable;
-    }
-    
-    this.currentInteractable = closestItem;
-    
-    if (this.currentInteractable) {
-      const btnText = this.player.state === 'sitting' ? 'Berdiri' : 'Duduk';
-      this.uiManager.toggleInteractButton(true, btnText);
-    } else {
-      this.uiManager.toggleInteractButton(false);
+      // If editing, camera follows target position with different heights based on tab
+      const camTarget = this.player.mesh.position.clone();
+      if (this.editorManager.activeTab === 'character') {
+        camTarget.y += 1.0;
+      } else {
+        camTarget.y += 0.5; // lower focus for placing props/roads
+      }
+      this.cameraManager.update(camTarget, dt);
     }
     
     // 5. UI
     this.uiManager.update();
     
-    // 5. Render
+    // 6. Render
     this.sceneManager.render();
     
     requestAnimationFrame(this.loop);
