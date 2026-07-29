@@ -329,9 +329,12 @@ export class MapEditor {
       btn.position.y = 0.15;
       g.add(base, btn);
       mesh = g;
-    } else if (type === 'road' || type === 'road_roundabout') {
+    } else if (type === 'road') {
       mesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), wireMat);
       mesh.rotation.x = -Math.PI / 2;
+      mesh.position.y = 0.01;
+    } else if (type === 'road_roundabout') {
+      mesh = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.02, 32), wireMat);
       mesh.position.y = 0.01;
     } else if (type === 'building') {
       const h = parseFloat(this.rangeHeight.value);
@@ -650,15 +653,19 @@ export class MapEditor {
       physicsBody = new CANNON.Body({ mass: 0 });
       physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(1.8, 0.25, 1.8)));
     }
-    else if (type === 'road' || type === 'road_roundabout') {
+    else if (type === 'road') {
       visualMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(10, 10),
-        new THREE.MeshLambertMaterial({ 
-          color: 0xffffff, 
-          map: type === 'road' ? this.createRoadTexture() : this.createRoundaboutTexture() 
-        })
+        new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createRoadTexture() })
       );
       visualMesh.rotation.x = -Math.PI / 2;
+      visualMesh.position.y = 0.01;
+    }
+    else if (type === 'road_roundabout') {
+      visualMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(5, 5, 0.02, 32),
+        new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createRoundaboutTexture() })
+      );
       visualMesh.position.y = 0.01;
     } 
     else if (type === 'building') {
