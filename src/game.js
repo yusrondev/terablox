@@ -57,6 +57,9 @@ export class Game {
     // 2. Game logic
     this.player.update(dt);
     this.npcManager.update(dt);
+    if (this.city && this.city.update) {
+      this.city.update(dt);
+    }
     
     // 3. Camera & Sun follow player
     const camTarget = this.player.mesh.position.clone();

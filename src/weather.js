@@ -23,7 +23,7 @@ export class WeatherManager {
         streetLightIntensity: 0.0,
         cloudColor: new THREE.Color(0xdce5ed),
         cloudOpacity: 0.85,
-        sunOffset: new THREE.Vector3(30, 60, 30)
+        sunOffset: new THREE.Vector3(-55, 20, -10)
       },
       hujan: {
         skyColor: new THREE.Color(0x323e4a),
@@ -41,7 +41,7 @@ export class WeatherManager {
         streetLightIntensity: 0.85,
         cloudColor: new THREE.Color(0x4b5563),
         cloudOpacity: 0.95,
-        sunOffset: new THREE.Vector3(30, 60, 30)
+        sunOffset: new THREE.Vector3(-55, 20, -10)
       },
       cerah: {
         skyColor: new THREE.Color(0x5cb3ff),
@@ -59,7 +59,7 @@ export class WeatherManager {
         streetLightIntensity: 0.0,
         cloudColor: new THREE.Color(0xffffff),
         cloudOpacity: 0.85,
-        sunOffset: new THREE.Vector3(30, 60, 30)
+        sunOffset: new THREE.Vector3(-55, 20, -10)
       },
       sore: {
         skyColor: new THREE.Color(0xfa7268),
@@ -183,7 +183,7 @@ export class WeatherManager {
     });
     
     const boundLimit = 150;
-    const numClouds = 16;
+    const numClouds = 0;
     
     for (let c = 0; c < numClouds; c++) {
       const cloudGroup = new THREE.Group();

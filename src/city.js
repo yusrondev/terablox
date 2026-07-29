@@ -64,7 +64,7 @@ export class CityGenerator {
     const leavesGeo   = new THREE.BoxGeometry(4, 4, 4);
     
     const tlPoleGeo   = new THREE.BoxGeometry(0.15, 3.5, 0.15);
-    const tlHouseGeo  = new THREE.BoxGeometry(0.6, 1.5, 0.6);
+    const tlHouseGeo  = new THREE.BoxGeometry(0.5, 1.5, 0.35);
     
     // Street Light Geometries
     const slPoleGeo  = new THREE.BoxGeometry(0.18, 4.5, 0.18);
@@ -105,7 +105,17 @@ export class CityGenerator {
     const leavesIM   = new THREE.InstancedMesh(leavesGeo, new THREE.MeshLambertMaterial({ color: this.colors.leaves }), maxTrees);
     
     const tlPoleIM   = new THREE.InstancedMesh(tlPoleGeo, new THREE.MeshLambertMaterial({ color: 0x444444 }), totalBlocks * 4);
-    const tlHouseIM  = new THREE.InstancedMesh(tlHouseGeo, new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createTrafficLightTexture() }), totalBlocks * 4);
+    const tlMainMat  = new THREE.MeshBasicMaterial({ color: 0xffffff, map: this.createTrafficLightTexture() });
+    const tlBlackMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    const tlMaterials = [
+      tlBlackMat, // +X
+      tlBlackMat, // -X
+      tlBlackMat, // +Y (removes light from the top)
+      tlBlackMat, // -Y (removes light from the bottom)
+      tlMainMat,  // +Z (front face)
+      tlMainMat   // -Z (back face)
+    ];
+    const tlHouseIM  = new THREE.InstancedMesh(tlHouseGeo, tlMaterials, totalBlocks * 4);
     
     const slPoleIM   = new THREE.InstancedMesh(slPoleGeo, new THREE.MeshLambertMaterial({ color: 0x2b3036 }), totalBlocks * 4);
     const slArmIM    = new THREE.InstancedMesh(slArmGeo,  new THREE.MeshLambertMaterial({ color: 0x2b3036 }), totalBlocks * 4);
@@ -344,28 +354,40 @@ export class CityGenerator {
           { x:  swHalf, z:  swHalf, rot: 0 }              // Bottom Right
         ];
         
+        const hasTrafficLights = (bx % 2 === 0 && bz % 2 === 0);
+        
         for (const corner of tlPositions) {
-          const cx = ox + corner.x;
-          const cz = oz + corner.z;
-          
-          // Pole (height 3.5 -> center at 1.75)
-          mat.makeTranslation(cx, 1.75, cz);
-          tlPoleIM.setMatrixAt(tlIdx, mat);
-          
-          // Housing (height 1.5 -> center at 3.5 + 0.75 - 0.2 overlap = 4.05)
-          mat.compose(
-            pos.set(cx, 4.05, cz), 
-            qRot.setFromAxisAngle(new THREE.Vector3(0, 1, 0), corner.rot),
-            scale.set(1, 1, 1)
-          );
-          tlHouseIM.setMatrixAt(tlIdx, mat);
-          
-          // Physics collider
-          const pBody = new CANNON.Body({ mass: 0 });
-          pBody.addShape(new CANNON.Box(new CANNON.Vec3(0.075, 1.75, 0.075)));
-          pBody.position.set(cx, 1.75, cz);
-          this.physicsManager.addBody(pBody);
-          
+          if (hasTrafficLights) {
+            const cx = ox + corner.x;
+            const cz = oz + corner.z;
+            
+            // Pole (height 3.5 -> center at 1.75)
+            mat.makeTranslation(cx, 1.75, cz);
+            tlPoleIM.setMatrixAt(tlIdx, mat);
+            
+            // Housing (height 1.5 -> center at 3.5 + 0.75 - 0.2 overlap = 4.05)
+            mat.compose(
+              pos.set(cx, 4.05, cz), 
+              qRot.setFromAxisAngle(new THREE.Vector3(0, 1, 0), corner.rot),
+              scale.set(1, 1, 1)
+            );
+            tlHouseIM.setMatrixAt(tlIdx, mat);
+            
+            // Physics collider
+            const pBody = new CANNON.Body({ mass: 0 });
+            pBody.addShape(new CANNON.Box(new CANNON.Vec3(0.075, 1.75, 0.075)));
+            pBody.position.set(cx, 1.75, cz);
+            this.physicsManager.addBody(pBody);
+          } else {
+            // Hide the unused traffic lights underground and scaled to 0
+            mat.compose(
+              pos.set(0, -999, 0),
+              qRot.set(0, 0, 0, 1),
+              scale.set(0, 0, 0)
+            );
+            tlPoleIM.setMatrixAt(tlIdx, mat);
+            tlHouseIM.setMatrixAt(tlIdx, mat);
+          }
           tlIdx++;
         }
 
@@ -661,24 +683,81 @@ export class CityGenerator {
   }
 
   createTrafficLightTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
+    this.tlCanvas = document.createElement('canvas');
+    this.tlCanvas.width = 64;
+    this.tlCanvas.height = 192; // 1:3 ratio
+    this.tlCtx = this.tlCanvas.getContext('2d');
+    
+    this.tlTexture = new THREE.CanvasTexture(this.tlCanvas);
+    this.trafficLightTimer = 0;
+    this.currentActiveColorIndex = -1;
+    
+    this.drawTrafficLightTexture(2); // Start with Green
+    
+    return this.tlTexture;
+  }
+
+  drawTrafficLightTexture(activeColorIndex) {
+    if (!this.tlCtx) return;
+    
+    const ctx = this.tlCtx;
     
     // Black housing
     ctx.fillStyle = '#111111';
-    ctx.fillRect(0, 0, 64, 128);
+    ctx.fillRect(0, 0, 64, 192);
     
-    // Red, Yellow, Green circles
-    const colors = ['#ff3333', '#ffcc00', '#33cc33'];
-    for(let i = 0; i < 3; i++) {
+    // Circles: Top = Red (0), Middle = Orange/Yellow (1), Bottom = Green (2)
+    const activeColors = ['#ff0000', '#ffaa00', '#00ff00'];
+    const inactiveColors = ['#220000', '#221100', '#002200'];
+    
+    const centersY = [32, 96, 160];
+    
+    for (let i = 0; i < 3; i++) {
+      // Draw outer light frame ring
+      ctx.beginPath();
+      ctx.arc(32, centersY[i], 16, 0, Math.PI * 2);
+      ctx.strokeStyle = '#222222';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      
+      // Draw light circle
+      ctx.beginPath();
+      ctx.arc(32, centersY[i], 13, 0, Math.PI * 2);
+      ctx.fillStyle = (i === activeColorIndex) ? activeColors[i] : inactiveColors[i];
+      ctx.fill();
+      
+      // Subtle shine highlight for the active light
+      if (i === activeColorIndex) {
         ctx.beginPath();
-        ctx.arc(32, 24 + i * 40, 14, 0, Math.PI * 2);
-        ctx.fillStyle = colors[i];
+        ctx.arc(28, centersY[i] - 4, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
         ctx.fill();
+      }
     }
     
-    return new THREE.CanvasTexture(canvas);
+    if (this.tlTexture) {
+      this.tlTexture.needsUpdate = true;
+    }
+  }
+
+  update(dt) {
+    if (!this.tlTexture) return;
+    
+    this.trafficLightTimer += dt;
+    const cycleTime = this.trafficLightTimer % 9.5;
+    
+    let activeColorIndex;
+    if (cycleTime < 4.0) {
+      activeColorIndex = 2; // Green
+    } else if (cycleTime < 5.5) {
+      activeColorIndex = 1; // Orange
+    } else {
+      activeColorIndex = 0; // Red
+    }
+    
+    if (activeColorIndex !== this.currentActiveColorIndex) {
+      this.currentActiveColorIndex = activeColorIndex;
+      this.drawTrafficLightTexture(activeColorIndex);
+    }
   }
 }
