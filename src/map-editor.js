@@ -119,6 +119,17 @@ export class MapEditor {
       });
     }
     
+    // Map Size selector binding
+    this.selectMapSize = document.getElementById('select-map-size');
+    if (this.selectMapSize) {
+      this.selectMapSize.addEventListener('change', (e) => {
+        const newSize = parseInt(e.target.value);
+        if (this.game.city) {
+          this.game.city.rebuildGroundAndBoundaries(newSize);
+        }
+      });
+    }
+    
     // Tile Colors setup
     if (this.pickerTile) {
       this.pickerTile.innerHTML = '';
@@ -924,13 +935,16 @@ export class MapEditor {
       }
     }
 
-    const mapData = this.placedObjects.map(obj => ({
-      type: obj.type,
-      position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
-      rotation: obj.rotation,
-      height: obj.height,
-      color: obj.color
-    }));
+    const mapData = {
+      mapSize: this.game.city ? this.game.city.citySize : 2,
+      placements: this.placedObjects.map(obj => ({
+        type: obj.type,
+        position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+        rotation: obj.rotation,
+        height: obj.height,
+        color: obj.color
+      }))
+    };
 
     savedMaps[name] = mapData;
     localStorage.setItem('terablox_saved_maps', JSON.stringify(savedMaps));
@@ -970,7 +984,17 @@ export class MapEditor {
 
   loadMapData(mapData) {
     this.clearPlacements();
-    if (!mapData || mapData.length === 0) return;
+    if (!mapData) return;
+
+    // Support backward compatibility (if mapData was just a list of placements)
+    const placements = Array.isArray(mapData) ? mapData : (mapData.placements || []);
+    const mapSize = Array.isArray(mapData) ? 2 : (mapData.mapSize || 2);
+
+    // Apply map size
+    if (this.game.city) {
+      this.game.city.rebuildGroundAndBoundaries(mapSize);
+      if (this.selectMapSize) this.selectMapSize.value = mapSize;
+    }
 
     // Create a temporary ghost if not active
     let needDestroyGhost = false;
@@ -979,7 +1003,7 @@ export class MapEditor {
       needDestroyGhost = true;
     }
 
-    mapData.forEach(data => {
+    placements.forEach(data => {
       this.rotationAngle = data.rotation;
       this.ghostMesh.position.set(data.position.x, data.position.y, data.position.z);
       if (data.type === 'building' && data.height) {

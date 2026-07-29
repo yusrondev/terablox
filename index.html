@@ -143,6 +143,15 @@
           <!-- City Builder Tab -->
           <div id="tab-city" class="editor-tab-panel">
             <h4>City Builder</h4>
+            <div class="control-group" style="margin-bottom: 12px;">
+              <label>Map Size</label>
+              <select id="select-map-size" style="width: 100%; padding: 8px; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.2); outline: none;">
+                <option value="1">Small (120m x 120m)</option>
+                <option value="2" selected>Medium (200m x 200m)</option>
+                <option value="3">Large (280m x 280m)</option>
+                <option value="4">Extra Large (360m x 360m)</option>
+              </select>
+            </div>
             <div class="brush-selector">
               <button class="brush-btn active" data-brush="road">Paint Road</button>
               <button class="brush-btn" data-brush="building">Drop Building</button>

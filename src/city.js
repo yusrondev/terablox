@@ -35,19 +35,19 @@ export class CityGenerator {
   createGround() {
     const totalSize = (this.citySize * 2 + 2) * this.gridSize;
     
-    const mesh = new THREE.Mesh(
+    this.groundMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(totalSize, totalSize),
       new THREE.MeshLambertMaterial({ color: this.colors.grass })
     );
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.receiveShadow = true;
-    this.sceneManager.scene.add(mesh);
+    this.groundMesh.rotation.x = -Math.PI / 2;
+    this.groundMesh.receiveShadow = true;
+    this.sceneManager.scene.add(this.groundMesh);
     
     // One big physics plane
-    const groundBody = new CANNON.Body({ mass: 0, material: this.physicsManager.defaultMaterial });
-    groundBody.addShape(new CANNON.Plane());
-    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-    this.physicsManager.addBody(groundBody);
+    this.groundBody = new CANNON.Body({ mass: 0, material: this.physicsManager.defaultMaterial });
+    this.groundBody.addShape(new CANNON.Plane());
+    this.groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    this.physicsManager.addBody(this.groundBody);
   }
   
   // ── Batch all instanced meshes, then place physics bodies ────────────────
@@ -635,12 +635,42 @@ export class CityGenerator {
       [ half, 0,     0,   half],  // +X wall
       [-half, 0,     0,   half],  // -X wall
     ];
+    this.boundaryBodies = [];
     for (const [x, z, wx, wz] of configs) {
       const body = new CANNON.Body({ mass: 0 });
       body.addShape(new CANNON.Box(new CANNON.Vec3(Math.max(wx, 1), 15, Math.max(wz, 1))));
       body.position.set(x, 15, z);
       this.physicsManager.addBody(body);
+      this.boundaryBodies.push(body);
     }
+  }
+
+  rebuildGroundAndBoundaries(newSize) {
+    this.citySize = newSize;
+
+    // Remove old ground mesh
+    if (this.groundMesh) {
+      this.sceneManager.scene.remove(this.groundMesh);
+    }
+
+    // Remove old boundaries
+    if (this.boundaryBodies) {
+      this.boundaryBodies.forEach(b => this.physicsManager.world.removeBody(b));
+    }
+    this.boundaryBodies = [];
+
+    // Re-create ground (physics plane groundBody is static infinite plane, so no need to replace it!)
+    const totalSize = (this.citySize * 2 + 2) * this.gridSize;
+    this.groundMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(totalSize, totalSize),
+      new THREE.MeshLambertMaterial({ color: this.colors.grass })
+    );
+    this.groundMesh.rotation.x = -Math.PI / 2;
+    this.groundMesh.receiveShadow = true;
+    this.sceneManager.scene.add(this.groundMesh);
+
+    // Re-create boundaries
+    this.createBoundaryWalls();
   }
 
   createRoadTexture() {
