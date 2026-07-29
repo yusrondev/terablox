@@ -51,6 +51,11 @@ export class EditorManager {
     this.uiContainer.style.display = 'flex';
     if (this.btnToggle) this.btnToggle.textContent = '🎮 Play Mode';
     
+    // Disable shadow casting to boost rendering performance in editor mode
+    if (this.game.sceneManager && this.game.sceneManager.directionalLight) {
+      this.game.sceneManager.directionalLight.castShadow = false;
+    }
+    
     // Hide standard mobile controls
     const mobileControls = document.getElementById('mobile-controls');
     if (mobileControls) mobileControls.style.display = 'none';

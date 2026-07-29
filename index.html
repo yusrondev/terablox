@@ -91,7 +91,11 @@
             <div class="props-catalog" id="props-catalog-list">
               <div class="catalog-item active" data-prop="lamp">
                 <span class="icon">🚦</span>
-                <span class="name">Lamp Post</span>
+                <span class="name">Traffic Light</span>
+              </div>
+              <div class="catalog-item" data-prop="street_light">
+                <span class="icon">💡</span>
+                <span class="name">Street Light</span>
               </div>
               <div class="catalog-item" data-prop="bench">
                 <span class="icon">🪑</span>
@@ -105,13 +109,33 @@
                 <span class="icon">🧯</span>
                 <span class="name">Hydrant</span>
               </div>
+              <div class="catalog-item" data-prop="grass">
+                <span class="icon">🌱</span>
+                <span class="name">Grass</span>
+              </div>
+              <div class="catalog-item" data-prop="tile">
+                <span class="icon">🟥</span>
+                <span class="name">Tile</span>
+              </div>
+              <div class="catalog-item" data-prop="tycoon_button">
+                <span class="icon">🔘</span>
+                <span class="name">Tycoon Button</span>
+              </div>
             </div>
+            
+            <!-- Tile Color Selector (shows when tile selected) -->
+            <div class="control-group" id="tile-color-picker-group" style="display: none; margin-top: 10px;">
+              <label>Tile Color</label>
+              <div class="color-picker-grid" id="picker-tile"></div>
+            </div>
+            
             <div class="prop-manipulation-info">
               <p><strong>Controls:</strong></p>
               <p>• Click on grid to Place</p>
               <p>• Click Prop to Select</p>
               <p>• Press <strong>R</strong> to Rotate</p>
               <p>• Press <strong>Backspace/Del</strong> to Remove</p>
+              <p>• Hold <strong>H</strong> + Drag Mouse to Pan Map</p>
             </div>
           </div>
 

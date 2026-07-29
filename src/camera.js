@@ -14,6 +14,8 @@ export class CameraManager {
     this.maxDistance = 45; // Increased to wide level
     
     this.isDragging = false;
+    this.isPanning = false;
+    this.panOffset = new THREE.Vector3();
     
     // Smooth target position
     this._target = new THREE.Vector3();
@@ -22,14 +24,42 @@ export class CameraManager {
   }
   
   _initEvents() {
+    // Keyboard listener for panning
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'h') {
+        this.isPanning = true;
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.key.toLowerCase() === 'h') {
+        this.isPanning = false;
+      }
+    });
+
     // PC Mouse
     this.domElement.addEventListener('mousedown', () => { this.isDragging = true; });
     document.addEventListener('mouseup', () => { this.isDragging = false; });
     document.addEventListener('mousemove', (e) => {
       if (!this.isDragging) return;
-      this.theta -= e.movementX * 0.004;
-      this.phi   -= e.movementY * 0.004;
-      this.phi = Math.max(0.05, Math.min(Math.PI / 2 + 0.1, this.phi));
+      
+      if (this.isPanning) {
+        // Calculate forward and right vectors relative to camera horizontal orientation
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+        forward.y = 0;
+        forward.normalize();
+        
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+        right.y = 0;
+        right.normalize();
+        
+        const speed = this.distance * 0.0015;
+        this.panOffset.addScaledVector(right, -e.movementX * speed);
+        this.panOffset.addScaledVector(forward, e.movementY * speed);
+      } else {
+        this.theta -= e.movementX * 0.004;
+        this.phi   -= e.movementY * 0.004;
+        this.phi = Math.max(0.05, Math.min(Math.PI / 2 + 0.1, this.phi));
+      }
     });
     
     // Zoom
@@ -113,8 +143,8 @@ export class CameraManager {
   }
   
   update(targetPosition, dt = 0.016) {
-    // Lock camera target 1:1 with player position (eliminates double-vision ghosting and lag)
-    this._target.copy(targetPosition);
+    // Lock camera target with player position + manual pan offset
+    this._target.copy(targetPosition).add(this.panOffset);
     
     // Convert spherical coordinates to Cartesian offset
     const sinPhi = Math.sin(this.phi);

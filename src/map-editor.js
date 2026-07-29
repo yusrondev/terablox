@@ -24,6 +24,10 @@ export class MapEditor {
     this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // horizontal y=0 plane
     this.intersectionPoint = new THREE.Vector3();
     
+    this.tileColorPickerGroup = document.getElementById('tile-color-picker-group');
+    this.pickerTile = document.getElementById('picker-tile');
+    this.selectedTileColor = '#ffffff';
+    
     this.setupUI();
     this.setupListeners();
   }
@@ -54,6 +58,13 @@ export class MapEditor {
           this.selectedProp = item.getAttribute('data-prop');
           this.rotationAngle = 0;
           this.deselectObject();
+          
+          if (this.selectedProp === 'tile') {
+            if (this.tileColorPickerGroup) this.tileColorPickerGroup.style.display = 'block';
+          } else {
+            if (this.tileColorPickerGroup) this.tileColorPickerGroup.style.display = 'none';
+          }
+          
           if (this.active && this.subMode === 'props') {
             this.createGhost(this.selectedProp);
           }
@@ -104,6 +115,29 @@ export class MapEditor {
           this.saveMapToLocalStorage(name.trim());
         }
       });
+    }
+    
+    // Tile Colors setup
+    if (this.pickerTile) {
+      this.pickerTile.innerHTML = '';
+      const tileColors = ['#ff8b94', '#ffaaa6', '#ffd3b6', '#d4f0f0', '#8fcaca', '#c7ceea', '#3b82f6', '#10b981', '#f59e0b', '#374151', '#ffffff'];
+      tileColors.forEach(color => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.backgroundColor = color;
+        swatch.setAttribute('data-color', color);
+        swatch.addEventListener('click', () => {
+          this.pickerTile.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+          swatch.classList.add('active');
+          this.selectedTileColor = color;
+          if (this.selectedProp === 'tile') {
+            this.createGhost('tile');
+          }
+        });
+        this.pickerTile.appendChild(swatch);
+      });
+      const swatches = this.pickerTile.querySelectorAll('.color-swatch');
+      if (swatches.length > 0) swatches[swatches.length - 1].classList.add('active');
     }
   }
   
@@ -176,9 +210,28 @@ export class MapEditor {
       h.position.y = 4.05;
       g.add(p, h);
       mesh = g;
+    } else if (type === 'street_light') {
+      const g = new THREE.Group();
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.18, 4.5, 0.18), wireMat);
+      p.position.y = 2.25;
+      const a = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 1.2), wireMat);
+      a.position.set(0, 4.41, 0.51);
+      const h = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.6), wireMat);
+      h.position.set(0, 4.41, 1.11);
+      g.add(p, a, h);
+      mesh = g;
     } else if (type === 'bench') {
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 1), wireMat);
-      mesh.position.y = 0.4;
+      const g = new THREE.Group();
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 0.6), wireMat);
+      seat.position.y = 0.55;
+      const back = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.4, 0.1), wireMat);
+      back.position.set(0, 0.9, 0.25);
+      const legL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.5), wireMat);
+      legL.position.set(0.8, 0.25, 0);
+      const legR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.5), wireMat);
+      legR.position.set(-0.8, 0.25, 0);
+      g.add(seat, back, legL, legR);
+      mesh = g;
     } else if (type === 'tree') {
       const g = new THREE.Group();
       const t = new THREE.Mesh(new THREE.BoxGeometry(0.6, 3, 0.6), wireMat);
@@ -190,6 +243,27 @@ export class MapEditor {
     } else if (type === 'hydrant') {
       mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 8), wireMat);
       mesh.position.y = 0.5;
+    } else if (type === 'grass') {
+      const g = new THREE.Group();
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.3), wireMat);
+      b1.position.y = 0.3;
+      const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), wireMat);
+      b2.position.set(0.15, 0.4, -0.15);
+      const b3 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.5, 0.25), wireMat);
+      b3.position.set(-0.2, 0.25, 0.1);
+      g.add(b1, b2, b3);
+      mesh = g;
+    } else if (type === 'tile') {
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 2), wireMat);
+      mesh.position.y = 0.05;
+    } else if (type === 'tycoon_button') {
+      const g = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.1, 16), wireMat);
+      base.position.y = 0.05;
+      const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.15, 16), wireMat);
+      btn.position.y = 0.15;
+      g.add(base, btn);
+      mesh = g;
     } else if (type === 'road') {
       mesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), wireMat);
       mesh.rotation.x = -Math.PI / 2;
@@ -240,16 +314,21 @@ export class MapEditor {
     if (e.clientX > window.innerWidth - 340 && e.clientY > 60) return;
     if (e.clientY < 60) return; // Top HUD clicks
     
-    // Check if we clicked on an existing placed object (except when painting/dropping)
-    if (this.subMode === 'props' && this.selectedProp === '') {
-      // Logic for selecting object
+    if (this.selectedBrush === 'clear') {
+      this.raycastErase(e);
+      return;
+    }
+    
+    // Allow clicking on existing placed objects to select them (unless painting roads/buildings)
+    if (this.subMode === 'props' && this.selectedProp !== 'lamp' && this.selectedProp !== 'street_light' && this.selectedProp !== 'bench' && this.selectedProp !== 'tree' && this.selectedProp !== 'hydrant' && this.selectedProp !== 'grass' && this.selectedProp !== 'tile' && this.selectedProp !== 'tycoon_button') {
       this.raycastSelect(e);
       return;
     }
     
-    if (this.subMode === 'city' && this.selectedBrush === 'clear') {
-      this.eraseObjectAt(this.ghostMesh.position);
-      return;
+    // If not painting tile/road, click selects existing object first
+    if (this.subMode === 'props') {
+      const selected = this.raycastSelect(e);
+      if (selected) return; // selection handled, block placement!
     }
     
     // Place new object
@@ -276,6 +355,7 @@ export class MapEditor {
     const redMat = new THREE.MeshLambertMaterial({ color: 0xef4444 });
     
     // Construct real meshes
+    // Construct real meshes
     if (type === 'lamp') {
       const g = new THREE.Group();
       const p = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.5, 0.15), darkGrey);
@@ -289,19 +369,37 @@ export class MapEditor {
       physicsBody = new CANNON.Body({ mass: 0 });
       physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(0.075, 1.75, 0.075)));
     } 
-    else if (type === 'bench') {
+    else if (type === 'street_light') {
       const g = new THREE.Group();
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 1), woodMat);
-      seat.position.y = 0.4;
-      const legL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 1), darkGrey);
-      legL.position.set(0.9, 0.2, 0);
-      const legR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 1), darkGrey);
-      legR.position.set(-0.9, 0.2, 0);
-      g.add(seat, legL, legR);
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.18, 4.5, 0.18), darkGrey);
+      p.position.y = 2.25;
+      const a = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 1.2), darkGrey);
+      a.position.set(0, 4.41, 0.51);
+      const h = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.6), new THREE.MeshLambertMaterial({ color: 0x1f2327 }));
+      h.position.set(0, 4.41, 1.11);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.45), new THREE.MeshBasicMaterial({ color: 0xffffcc }));
+      b.position.set(0, 4.29, 1.11);
+      g.add(p, a, h, b);
       visualMesh = g;
       
       physicsBody = new CANNON.Body({ mass: 0 });
-      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(1.0, 0.4, 0.5)));
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(0.09, 2.25, 0.09)));
+    }
+    else if (type === 'bench') {
+      const g = new THREE.Group();
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 0.6), woodMat);
+      seat.position.y = 0.55;
+      const back = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.4, 0.1), woodMat);
+      back.position.set(0, 0.9, 0.25);
+      const legL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.5), darkGrey);
+      legL.position.set(0.8, 0.25, 0);
+      const legR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.5), darkGrey);
+      legR.position.set(-0.8, 0.25, 0);
+      g.add(seat, back, legL, legR);
+      visualMesh = g;
+      
+      physicsBody = new CANNON.Body({ mass: 0 });
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(1.0, 0.5, 0.3)));
     } 
     else if (type === 'tree') {
       const g = new THREE.Group();
@@ -321,12 +419,43 @@ export class MapEditor {
       
       physicsBody = new CANNON.Body({ mass: 0 });
       physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(0.2, 0.5, 0.2)));
-    } 
+    }
+    else if (type === 'grass') {
+      const g = new THREE.Group();
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.3), leavesMat);
+      b1.position.y = 0.3;
+      const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), new THREE.MeshLambertMaterial({ color: 0x6ab04c }));
+      b2.position.set(0.15, 0.4, -0.15);
+      const b3 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.5, 0.25), new THREE.MeshLambertMaterial({ color: 0xbadc58 }));
+      b3.position.set(-0.2, 0.25, 0.1);
+      g.add(b1, b2, b3);
+      visualMesh = g;
+      // No physics collider for grass
+    }
+    else if (type === 'tile') {
+      visualMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 2), new THREE.MeshLambertMaterial({ color: this.selectedTileColor }));
+      visualMesh.position.y = 0.05;
+      
+      physicsBody = new CANNON.Body({ mass: 0 });
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(1.0, 0.05, 1.0)));
+    }
+    else if (type === 'tycoon_button') {
+      const g = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.1, 16), darkGrey);
+      base.position.y = 0.05;
+      const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.15, 16), redMat);
+      btn.position.y = 0.15;
+      g.add(base, btn);
+      visualMesh = g;
+      
+      physicsBody = new CANNON.Body({ mass: 0 });
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(0.9, 0.1, 0.9)));
+    }
     else if (type === 'road') {
-      // Paint road tile
+      // Paint road tile (uses centered cross road texture)
       visualMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(10, 10),
-        new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.game.city.createRoadTexture() })
+        new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.createRoadTexture() })
       );
       visualMesh.rotation.x = -Math.PI / 2;
       visualMesh.position.y = 0.01;
@@ -368,10 +497,22 @@ export class MapEditor {
     if (physicsBody) {
       physicsBody.position.set(
         visualMesh.position.x, 
-        (type === 'building') ? visualMesh.position.y : (type === 'hydrant' ? 0.5 : (type === 'lamp' ? 1.75 : 0.4)), 
+        (type === 'building') ? visualMesh.position.y : (type === 'hydrant' ? 0.5 : (type === 'lamp' ? 1.75 : (type === 'street_light' ? 2.25 : (type === 'bench' ? 0.25 : (type === 'tycoon_button' ? 0.05 : 0.05))))), 
         visualMesh.position.z
       );
+      if (type !== 'road') {
+        physicsBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), this.rotationAngle);
+      }
       this.game.physicsManager.addBody(physicsBody);
+    }
+    
+    // Register interactable for Bench
+    if (type === 'bench') {
+      this.game.sceneManager.interactables.push({
+        type: 'bench',
+        position: new THREE.Vector3(visualMesh.position.x, visualMesh.position.y + 0.6, visualMesh.position.z),
+        rotation: this.rotationAngle
+      });
     }
     
     // Add to placed list
@@ -382,7 +523,8 @@ export class MapEditor {
       body: physicsBody,
       position: visualMesh.position.clone(),
       rotation: this.rotationAngle,
-      height: (type === 'building') ? parseFloat(this.rangeHeight.value) : null
+      height: (type === 'building') ? parseFloat(this.rangeHeight.value) : null,
+      color: (type === 'tile') ? this.selectedTileColor : null
     };
     
     this.placedObjects.push(placedObj);
@@ -400,7 +542,51 @@ export class MapEditor {
       if (obj.body) {
         this.game.physicsManager.world.removeBody(obj.body);
       }
+      if (obj.type === 'bench') {
+        const intIndex = this.game.sceneManager.interactables.findIndex(item => 
+          item.position.distanceTo(new THREE.Vector3(obj.position.x, obj.position.y + 0.6, obj.position.z)) < 0.1
+        );
+        if (intIndex !== -1) {
+          this.game.sceneManager.interactables.splice(intIndex, 1);
+        }
+      }
       this.placedObjects.splice(index, 1);
+    }
+  }
+  
+  raycastErase(e) {
+    this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    
+    this.raycaster.setFromCamera(this.mouse, this.game.cameraManager.camera);
+    
+    const meshes = this.placedObjects.map(obj => obj.mesh);
+    const intersects = this.raycaster.intersectObjects(meshes, true);
+    
+    if (intersects.length > 0) {
+      let hitMesh = intersects[0].object;
+      while (hitMesh.parent && hitMesh.parent !== this.game.sceneManager.scene) {
+        hitMesh = hitMesh.parent;
+      }
+      
+      const index = this.placedObjects.findIndex(obj => obj.mesh === hitMesh);
+      if (index !== -1) {
+        const obj = this.placedObjects[index];
+        this.game.sceneManager.scene.remove(obj.mesh);
+        if (obj.body) {
+          this.game.physicsManager.world.removeBody(obj.body);
+        }
+        if (obj.type === 'bench') {
+          const intIndex = this.game.sceneManager.interactables.findIndex(item => 
+            item.position.distanceTo(new THREE.Vector3(obj.position.x, obj.position.y + 0.6, obj.position.z)) < 0.1
+          );
+          if (intIndex !== -1) {
+            this.game.sceneManager.interactables.splice(intIndex, 1);
+          }
+        }
+        this.placedObjects.splice(index, 1);
+        this.deselectObject();
+      }
     }
   }
   
@@ -408,7 +594,6 @@ export class MapEditor {
     if (!this.active) return;
     
     if (e.key === 'r' || e.key === 'R') {
-      // Rotate active ghost / selection by 90 degrees
       this.rotationAngle = (this.rotationAngle + Math.PI / 2) % (Math.PI * 2);
       if (this.ghostMesh) {
         this.ghostMesh.rotation.y = this.rotationAngle;
@@ -416,6 +601,18 @@ export class MapEditor {
       if (this.selectedObject) {
         this.selectedObject.mesh.rotation.y = this.rotationAngle;
         this.selectedObject.rotation = this.rotationAngle;
+        if (this.selectedObject.body) {
+          this.selectedObject.body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), this.rotationAngle);
+        }
+        // Update bench interactable rotation if selected object is a bench
+        if (this.selectedObject.type === 'bench') {
+          const intItem = this.game.sceneManager.interactables.find(item => 
+            item.position.distanceTo(new THREE.Vector3(this.selectedObject.position.x, this.selectedObject.position.y + 0.6, this.selectedObject.position.z)) < 0.1
+          );
+          if (intItem) {
+            intItem.rotation = this.rotationAngle;
+          }
+        }
       }
     }
     
@@ -433,12 +630,10 @@ export class MapEditor {
     
     this.raycaster.setFromCamera(this.mouse, this.game.cameraManager.camera);
     
-    // Search placed meshes for click intersections
     const meshes = this.placedObjects.map(obj => obj.mesh);
     const intersects = this.raycaster.intersectObjects(meshes, true);
     
     if (intersects.length > 0) {
-      // Find top group or parent mesh that matches our placed object
       let hitMesh = intersects[0].object;
       while (hitMesh.parent && hitMesh.parent !== this.game.sceneManager.scene) {
         hitMesh = hitMesh.parent;
@@ -447,10 +642,12 @@ export class MapEditor {
       const found = this.placedObjects.find(obj => obj.mesh === hitMesh);
       if (found) {
         this.selectObject(found);
+        return true;
       }
     } else {
       this.deselectObject();
     }
+    return false;
   }
   
   selectObject(obj) {
@@ -543,7 +740,8 @@ export class MapEditor {
       type: obj.type,
       position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
       rotation: obj.rotation,
-      height: obj.height
+      height: obj.height,
+      color: obj.color
     }));
 
     savedMaps[name] = mapData;
@@ -555,6 +753,16 @@ export class MapEditor {
     this.placedObjects.forEach(obj => {
       this.game.sceneManager.scene.remove(obj.mesh);
       if (obj.body) this.game.physicsManager.world.removeBody(obj.body);
+      
+      // Clean up interactables if it was a bench
+      if (obj.type === 'bench') {
+        const intIndex = this.game.sceneManager.interactables.findIndex(item => 
+          item.position.distanceTo(new THREE.Vector3(obj.position.x, obj.position.y + 0.6, obj.position.z)) < 0.1
+        );
+        if (intIndex !== -1) {
+          this.game.sceneManager.interactables.splice(intIndex, 1);
+        }
+      }
     });
     this.placedObjects = [];
   }
@@ -577,6 +785,9 @@ export class MapEditor {
         if (this.rangeHeight) this.rangeHeight.value = data.height;
         if (this.lblHeight) this.lblHeight.textContent = data.height;
       }
+      if (data.type === 'tile' && data.color) {
+        this.selectedTileColor = data.color;
+      }
       this.placeObject();
     });
 
@@ -584,5 +795,47 @@ export class MapEditor {
       this.game.sceneManager.scene.remove(this.ghostMesh);
       this.ghostMesh = null;
     }
+  }
+
+  createRoadTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Asphalt base
+    ctx.fillStyle = '#22252a';
+    ctx.fillRect(0, 0, 512, 512);
+    
+    // Slight noise
+    for (let i = 0; i < 8000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#1a1d21' : '#2a2e35';
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+    }
+    
+    // Dashed lines crossing through center (forming two lanes in both directions)
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 16; 
+    ctx.setLineDash([40, 40]);
+    
+    // Vertical line
+    ctx.beginPath();
+    ctx.moveTo(256, 0);
+    ctx.lineTo(256, 512);
+    ctx.stroke();
+    
+    // Horizontal line
+    ctx.beginPath();
+    ctx.moveTo(0, 256);
+    ctx.lineTo(512, 256);
+    ctx.stroke();
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    if (this.game.sceneManager.renderer) {
+      texture.anisotropy = this.game.sceneManager.renderer.capabilities.getMaxAnisotropy();
+    }
+    return texture;
   }
 }
