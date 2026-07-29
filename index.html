@@ -53,6 +53,7 @@
           <button class="editor-tab-btn active" data-tab="character">👤 Character</button>
           <button class="editor-tab-btn" data-tab="props">🪴 Props</button>
           <button class="editor-tab-btn" data-tab="city">🏙️ Builder</button>
+          <button class="editor-tab-btn" data-tab="creator">🎨 Creator</button>
         </div>
 
         <div class="editor-content">
@@ -144,6 +145,11 @@
               </div>
             </div>
             
+            <h5 style="margin-top: 15px; margin-bottom: 6px; color: #10b981; font-weight: bold; font-size: 12px;">Custom Assets</h5>
+            <div class="props-catalog" id="custom-catalog-list" style="margin-bottom: 12px; gap: 8px;">
+              <div style="color: #888; text-align: center; grid-column: span 2; font-size: 11px; padding: 10px;">Belum ada Custom Asset. Buat di tab "Creator"!</div>
+            </div>
+            
             <!-- Tile Color Selector (shows when tile selected) -->
             <div class="control-group" id="tile-color-picker-group" style="display: none; margin-top: 10px;">
               <label>Tile Color</label>
@@ -201,9 +207,160 @@
              <div class="map-io-group">
                <button id="btn-save-map" class="editor-action-btn">Save Map to Studio</button>
                <button id="btn-export-map" class="editor-action-btn sec-btn">Export Map JSON</button>
-               <button id="btn-import-map" class="editor-action-btn sec-btn">Import Map JSON</button>
+                <button id="btn-import-map" class="editor-action-btn sec-btn">Import Map JSON</button>
+              </div>
+           </div>
+           
+           <!-- Creator Studio Tab -->
+           <div id="tab-creator" class="editor-tab-panel">
+             <h4 style="color: #3b82f6; margin-bottom: 8px;">Creator Studio</h4>
+             
+             <!-- Load Saved Asset -->
+             <div class="control-group" style="margin-bottom: 12px; background: rgba(59, 130, 246, 0.05); padding: 8px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.15);">
+               <label style="font-size: 11px; color: #a1b0be; font-weight: bold;">Load Aset Tersimpan</label>
+               <div style="display: flex; gap: 6px; margin-top: 6px;">
+                 <select id="select-creator-load-asset" style="flex: 2; padding: 6px; border-radius: 6px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.2); outline: none; font-size: 11px; cursor: pointer;">
+                   <option value="">-- Pilih Aset --</option>
+                 </select>
+                 <button id="btn-creator-load-asset" class="editor-action-btn" style="flex: 1; font-size: 11px; padding: 6px 10px;">Load</button>
+               </div>
              </div>
-          </div>
+             
+             <!-- Shape Adders -->
+             <div class="control-group" style="margin-bottom: 12px;">
+               <label>Add Shape Primitive</label>
+               <div class="brush-selector" style="grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px;">
+                 <button class="creator-shape-btn" data-shape="box" style="font-size: 11px; padding: 6px;">📦 Cube</button>
+                 <button class="creator-shape-btn" data-shape="sphere" style="font-size: 11px; padding: 6px;">🟢 Sphere</button>
+                 <button class="creator-shape-btn" data-shape="cylinder" style="font-size: 11px; padding: 6px;">💈 Cylinder</button>
+                 <button class="creator-shape-btn" data-shape="cone" style="font-size: 11px; padding: 6px;">📐 Cone</button>
+                 <button class="creator-shape-btn" data-shape="torus" style="font-size: 11px; padding: 6px;">🍩 Torus</button>
+               </div>
+             </div>
+             
+             <!-- Hierarchy / Part List -->
+             <div class="control-group" style="margin-bottom: 12px;">
+               <label>Parts List</label>
+               <div id="creator-part-list" style="max-height: 120px; overflow-y: auto; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 6px; font-size: 11px; margin-top: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                 <div style="color: #888; text-align: center; padding: 10px;">No parts added yet</div>
+               </div>
+             </div>
+             
+             <!-- Creator workspace controls tip -->
+             <div style="margin-top: 4px; margin-bottom: 10px; padding: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; font-size: 11px; line-height: 1.4; color: #a1b0be;">
+               💡 <b>Petunjuk Perakitan 3D:</b>
+               <br>• Klik & <b>seret (drag)</b> bentuk di layar untuk menggeser.
+               <br>• Sumbu: <span style="color: #ef4444; font-weight: bold;">Merah (X)</span>, <span style="color: #10b981; font-weight: bold;">Hijau (Y-Atas)</span>, <span style="color: #3b82f6; font-weight: bold;">Biru (Z)</span>.
+             </div>
+             
+             <!-- Transform Tools -->
+             <div class="control-group" id="creator-transform-group" style="background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px; margin-top: 8px; display: none;">
+               <label style="color: #3b82f6; font-weight: bold; margin-bottom: 6px; display: block; font-size: 12px;">Part Transforms</label>
+               
+               <!-- Position -->
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Move X: <span id="lbl-part-px">0.0</span></label>
+                 <input type="range" id="range-part-px" min="-8" max="8" step="0.1" value="0" style="width: 100%;">
+               </div>
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Move Y: <span id="lbl-part-py">0.5</span></label>
+                 <input type="range" id="range-part-py" min="-8" max="8" step="0.1" value="0.5" style="width: 100%;">
+               </div>
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Move Z: <span id="lbl-part-pz">0.0</span></label>
+                 <input type="range" id="range-part-pz" min="-8" max="8" step="0.1" value="0" style="width: 100%;">
+               </div>
+               
+               <!-- Rotation -->
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Rotate Y (Yaw): <span id="lbl-part-ry">0</span>°</label>
+                 <input type="range" id="range-part-ry" min="0" max="360" step="5" value="0" style="width: 100%;">
+               </div>
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Rotate X (Pitch): <span id="lbl-part-rx">0</span>°</label>
+                 <input type="range" id="range-part-rx" min="0" max="360" step="5" value="0" style="width: 100%;">
+               </div>
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Rotate Z (Roll): <span id="lbl-part-rz">0</span>°</label>
+                 <input type="range" id="range-part-rz" min="0" max="360" step="5" value="0" style="width: 100%;">
+               </div>
+               
+               <!-- Scale -->
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Scale X: <span id="lbl-part-sx">1.0</span></label>
+                 <input type="range" id="range-part-sx" min="0.1" max="5.0" step="0.1" value="1.0" style="width: 100%;">
+               </div>
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Scale Y: <span id="lbl-part-sy">1.0</span></label>
+                 <input type="range" id="range-part-sy" min="0.1" max="5.0" step="0.1" value="1.0" style="width: 100%;">
+               </div>
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Scale Z: <span id="lbl-part-sz">1.0</span></label>
+                 <input type="range" id="range-part-sz" min="0.1" max="5.0" step="0.1" value="1.0" style="width: 100%;">
+               </div>
+               
+               <!-- Material Details -->
+               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                 <label style="margin: 0; font-size: 10px;">Part Color:</label>
+                 <input type="color" id="input-part-color" value="#3b82f6" style="background: none; border: none; cursor: pointer; height: 24px; width: 45px; border-radius: 4px;">
+               </div>
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Roughness: <span id="lbl-part-rough">0.5</span></label>
+                 <input type="range" id="range-part-rough" min="0.0" max="1.0" step="0.05" value="0.5" style="width: 100%;">
+               </div>
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Metalness: <span id="lbl-part-metal">0.1</span></label>
+                 <input type="range" id="range-part-metal" min="0.0" max="1.0" step="0.05" value="0.1" style="width: 100%;">
+               </div>
+               
+               <!-- Actions -->
+               <div style="display: flex; gap: 6px; margin-top: 10px;">
+                 <button id="btn-part-duplicate" class="editor-action-btn sec-btn" style="flex: 1; padding: 6px; font-size: 11px;">Duplicate</button>
+                 <button id="btn-part-delete" class="editor-action-btn sec-btn" style="flex: 1; padding: 6px; font-size: 11px; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #ff8b94;">Delete</button>
+               </div>
+             </div>
+             
+             <!-- Anchors Editor (Vehicles) -->
+             <div class="control-group" id="creator-socket-group" style="background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px; margin-top: 8px;">
+               <label style="color: #10b981; font-weight: bold; margin-bottom: 6px; display: block; font-size: 12px;">Vehicle Sockets / Anchors</label>
+               
+               <div class="brush-selector" style="grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px;">
+                 <button class="socket-select-btn active" data-socket="seat" style="font-size: 9px; padding: 6px 2px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white;">🔴 Seat</button>
+                 <button class="socket-select-btn" data-socket="wheel" style="font-size: 9px; padding: 6px 2px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white;">🟡 Steering</button>
+                 <button class="socket-select-btn" data-socket="exit" style="font-size: 9px; padding: 6px 2px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white;">🟢 Exit</button>
+               </div>
+               
+               <!-- Socket positioning -->
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Socket X: <span id="lbl-socket-x">0.0</span></label>
+                 <input type="range" id="range-socket-x" min="-6" max="6" step="0.1" value="0.0" style="width: 100%;">
+               </div>
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Socket Y: <span id="lbl-socket-y">1.0</span></label>
+                 <input type="range" id="range-socket-y" min="-6" max="6" step="0.1" value="1.0" style="width: 100%;">
+               </div>
+               <div style="margin-bottom: 6px;">
+                 <label style="display: flex; justify-content: space-between; font-size: 10px;">Socket Z: <span id="lbl-socket-z">0.0</span></label>
+                 <input type="range" id="range-socket-z" min="-6" max="6" step="0.1" value="0.0" style="width: 100%;">
+               </div>
+             </div>
+             
+             <!-- Save and Publish -->
+             <div class="control-group" style="margin-top: 8px;">
+               <input type="text" id="input-asset-name" placeholder="Nama Aset Kustom..." style="width: 100%; padding: 8px; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.2); outline: none; margin-bottom: 8px; font-size: 12px;">
+               
+               <select id="select-asset-category" style="width: 100%; padding: 8px; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.2); outline: none; margin-bottom: 10px; font-size: 12px;">
+                 <option value="prop">Kategori: Prop / Hiasan</option>
+                 <option value="building">Kategori: Building / Bangunan</option>
+                 <option value="vehicle">Kategori: Vehicle / Kendaraan</option>
+               </select>
+               
+               <div style="display: flex; gap: 8px;">
+                 <button id="btn-save-asset" class="editor-action-btn" style="flex: 2;">💾 Save Component</button>
+                 <button id="btn-cancel-edit-asset" class="editor-action-btn sec-btn" style="flex: 1; display: none; font-size: 11px;">Batal</button>
+               </div>
+             </div>
+           </div>
           <!-- Shared Object Scale Selector -->
           <div class="control-group" id="tile-scale-control-group" style="display: none; margin-top: 10px; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px;">
             <label style="color: #3b82f6; font-weight: bold; margin-bottom: 8px;">Object Dimensions</label>
@@ -264,6 +421,8 @@
         <div id="action-buttons">
           <button id="btn-sprint">Sprint</button>
           <button id="btn-jump">Jump</button>
+          <button id="btn-gas" style="display: none; background: #10b981; color: white; border: none; border-radius: 50%; width: 60px; height: 60px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); outline: none;">Gas</button>
+          <button id="btn-rem" style="display: none; background: #ef4444; color: white; border: none; border-radius: 50%; width: 60px; height: 60px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); outline: none;">Rem</button>
         </div>
       </div>
     </div>

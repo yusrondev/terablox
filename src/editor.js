@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CharacterStudio } from './character-studio.js';
 import { MapEditor } from './map-editor.js';
+import { CreatorStudio } from './creator-studio.js';
 
 export class EditorManager {
   constructor(game) {
@@ -20,6 +21,7 @@ export class EditorManager {
     // Sub-editors
     this.characterStudio = new CharacterStudio(this, this.game);
     this.mapEditor = new MapEditor(this, this.game);
+    this.creatorStudio = new CreatorStudio(this, this.game);
     
     this.initEvents();
   }
@@ -87,6 +89,7 @@ export class EditorManager {
     // Deactivate active sub-editor states (removes ghost)
     this.mapEditor.deactivate();
     this.characterStudio.deactivate();
+    this.creatorStudio.deactivate();
     
     // Re-enable shadows
     if (this.game.sceneManager && this.game.sceneManager.directionalLight) {
@@ -125,12 +128,32 @@ export class EditorManager {
       this.game.player.body.angularVelocity.set(0, 0, 0);
     }
     
+    // Reset all dynamic placed vehicles/objects to initial position & zero velocity
+    if (this.mapEditor && this.mapEditor.placedObjects) {
+      this.mapEditor.placedObjects.forEach(obj => {
+        if (obj.body && obj.body.mass > 0) {
+          obj.body.position.copy(obj.position);
+          obj.body.velocity.set(0, 0, 0);
+          obj.body.angularVelocity.set(0, 0, 0);
+          
+          const qYaw = new CANNON.Quaternion();
+          qYaw.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), obj.rotation);
+          obj.body.quaternion.copy(qYaw);
+          
+          obj.mesh.position.copy(obj.position);
+          obj.mesh.quaternion.copy(qYaw);
+        }
+      });
+    }
+    
     // Re-enter Editor Mode
     this.enterEditorMode();
     
     // Reactivate active sub-editor tab
     if (this.activeTab === 'character') {
       this.characterStudio.activate();
+    } else if (this.activeTab === 'creator') {
+      this.creatorStudio.activate();
     } else {
       this.mapEditor.activate(this.activeTab);
     }
@@ -165,9 +188,15 @@ export class EditorManager {
     // Activate/deactivate modules based on selection
     if (tabName === 'character') {
       this.mapEditor.deactivate();
+      this.creatorStudio.deactivate();
       this.characterStudio.activate();
+    } else if (tabName === 'creator') {
+      this.mapEditor.deactivate();
+      this.characterStudio.deactivate();
+      this.creatorStudio.activate();
     } else {
       this.characterStudio.deactivate();
+      this.creatorStudio.deactivate();
       this.mapEditor.activate(tabName);
     }
   }

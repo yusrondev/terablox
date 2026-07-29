@@ -982,3 +982,111 @@ body {
     max-height: 50vh;
   }
 }
+
+/* ─── Creator Studio Styles ─── */
+.creator-shape-btn {
+  background: rgba(10, 14, 23, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  padding: 8px 4px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.creator-shape-btn:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: white;
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.creator-shape-btn:active {
+  transform: translateY(1px);
+}
+
+.creator-part-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.creator-part-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.creator-part-item.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: white;
+}
+
+.creator-part-item-name {
+  font-weight: 600;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.creator-part-item-type {
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+  background: rgba(0,0,0,0.2);
+  padding: 2px 4px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.socket-select-btn {
+  background: rgba(10, 14, 23, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  padding: 8px 4px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.socket-select-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.socket-select-btn.active[data-socket="seat"] {
+  background: rgba(239, 68, 68, 0.25) !important;
+  border-color: #ef4444 !important;
+  color: #ff8b94 !important;
+}
+
+.socket-select-btn.active[data-socket="wheel"] {
+  background: rgba(245, 158, 11, 0.25) !important;
+  border-color: #f59e0b !important;
+  color: #fde047 !important;
+}
+
+.socket-select-btn.active[data-socket="exit"] {
+  background: rgba(16, 185, 129, 0.25) !important;
+  border-color: #10b981 !important;
+  color: #a7f3d0 !important;
+}
+
+/* Custom Assets Edit Button Hover Styling */
+.catalog-item {
+  position: relative;
+}
+.catalog-item:hover .edit-custom-btn {
+  display: block !important;
+}

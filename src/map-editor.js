@@ -19,6 +19,9 @@ export class MapEditor {
     this.selectedObject = null;
     this.ghostMesh = null;
     
+    this.customAssets = [];
+    this.selectedCustomAsset = null;
+    
     // Raycasting utilities
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -40,6 +43,7 @@ export class MapEditor {
     
     this.setupUI();
     this.setupListeners();
+    this.loadCustomAssets();
   }
   
   setupUI() {
@@ -66,8 +70,12 @@ export class MapEditor {
       this.catalogList.querySelectorAll('.catalog-item').forEach(item => {
         item.addEventListener('click', () => {
           this.catalogList.querySelectorAll('.catalog-item').forEach(i => i.classList.remove('active'));
+          if (this.customCatalogList) {
+            this.customCatalogList.querySelectorAll('.catalog-item').forEach(i => i.classList.remove('active'));
+          }
           item.classList.add('active');
           this.selectedProp = item.getAttribute('data-prop');
+          this.selectedCustomAsset = null;
           this.rotationAngle = 0;
           this.deselectObject();
           
@@ -206,6 +214,167 @@ export class MapEditor {
     }
   }
 
+  loadCustomAssets() {
+    this.customCatalogList = document.getElementById('custom-catalog-list');
+    const saved = localStorage.getItem('creator_assets');
+    this.customAssets = saved ? JSON.parse(saved) : [];
+    
+    if (!this.customCatalogList) return;
+    this.customCatalogList.innerHTML = '';
+    
+    if (this.customAssets.length === 0) {
+      this.customCatalogList.innerHTML = `<div style="color: #888; text-align: center; grid-column: span 2; font-size: 11px; padding: 10px;">Belum ada Custom Asset. Buat di tab "Creator"!</div>`;
+      return;
+    }
+    
+    this.customAssets.forEach(asset => {
+      const el = document.createElement('div');
+      el.className = 'catalog-item';
+      el.setAttribute('data-custom-id', asset.id);
+      
+      let icon = '📦';
+      if (asset.category === 'vehicle') icon = '🚗';
+      else if (asset.category === 'building') icon = '🏢';
+      
+      el.innerHTML = `
+        <span class="icon">${icon}</span>
+        <span class="name">${asset.name}</span>
+        <button class="edit-custom-btn" style="position: absolute; right: 5px; top: 5px; background: #3b82f6; border: none; border-radius: 4px; color: white; padding: 2px 6px; font-size: 10px; cursor: pointer; display: none;">✏️</button>
+      `;
+      
+      el.addEventListener('click', (e) => {
+        // If click targets edit button
+        if (e.target.classList.contains('edit-custom-btn')) {
+          e.stopPropagation();
+          this.editorManager.creatorStudio.editAsset(asset);
+          return;
+        }
+        
+        if (this.catalogList) {
+          this.catalogList.querySelectorAll('.catalog-item').forEach(i => i.classList.remove('active'));
+        }
+        this.customCatalogList.querySelectorAll('.catalog-item').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        
+        this.selectedProp = 'custom_' + asset.id;
+        this.selectedCustomAsset = asset;
+        this.rotationAngle = 0;
+        this.deselectObject();
+        
+        if (this.tileColorPickerGroup) this.tileColorPickerGroup.style.display = 'none';
+        if (this.tileScaleControlGroup) this.tileScaleControlGroup.style.display = 'none';
+        
+        if (this.active && this.subMode === 'props') {
+          this.createGhost(this.selectedProp);
+        }
+      });
+      
+      this.customCatalogList.appendChild(el);
+    });
+  }
+
+  updatePlacedCustomAssetMeshes(assetId, updatedAsset) {
+    this.placedObjects.forEach(obj => {
+      if (obj.type === 'custom_' + assetId) {
+        // Remove old visual mesh from scene
+        this.game.sceneManager.scene.remove(obj.mesh);
+        
+        // Build new visual mesh
+        const visualMesh = this.buildCustomAssetMesh(updatedAsset, false);
+        visualMesh.position.copy(obj.position);
+        visualMesh.rotation.y = obj.rotation;
+        visualMesh.castShadow = true;
+        visualMesh.receiveShadow = true;
+        visualMesh.traverse(child => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        // Replace in-memory mesh reference & add back to scene
+        obj.mesh = visualMesh;
+        this.game.sceneManager.scene.add(visualMesh);
+        
+        // Update physics shape bounds if category or geometry bounds changed
+        if (obj.body) {
+          // Remove old shapes
+          while (obj.body.shapes.length > 0) {
+            obj.body.removeShape(obj.body.shapes[0]);
+          }
+          
+          const box = new THREE.Box3().setFromObject(visualMesh);
+          const size = new THREE.Vector3();
+          box.getSize(size);
+          
+          const halfX = Math.max(0.2, size.x / 2);
+          const halfY = Math.max(0.2, size.y / 2);
+          const halfZ = Math.max(0.2, size.z / 2);
+          
+          obj.body.addShape(new CANNON.Box(new CANNON.Vec3(halfX, halfY, halfZ)), new CANNON.Vec3(0, halfY, 0));
+        }
+      }
+    });
+  }
+
+  buildCustomAssetMesh(asset, wireframe = false) {
+    const group = new THREE.Group();
+    const parts = asset.parts || [];
+    
+    parts.forEach(p => {
+      let geo;
+      if (p.type === 'box') {
+        geo = new THREE.BoxGeometry(1, 1, 1);
+      } else if (p.type === 'sphere') {
+        geo = new THREE.SphereGeometry(0.6, 12, 12);
+      } else if (p.type === 'cylinder') {
+        geo = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
+      } else if (p.type === 'cone') {
+        geo = new THREE.ConeGeometry(0.5, 1, 12);
+      } else if (p.type === 'torus') {
+        geo = new THREE.TorusGeometry(0.4, 0.15, 6, 16);
+      } else {
+        return;
+      }
+      
+      let mat;
+      if (wireframe) {
+        mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, transparent: true, opacity: 0.6 });
+      } else {
+        mat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(p.color || '#3b82f6'),
+          roughness: p.roughness !== undefined ? p.roughness : 0.5,
+          metalness: p.metalness !== undefined ? p.metalness : 0.1
+        });
+      }
+      
+      const partMesh = new THREE.Mesh(geo, mat);
+      partMesh.position.set(p.position.x, p.position.y, p.position.z);
+      partMesh.rotation.set(
+        (p.rotation.x || 0) * Math.PI / 180,
+        (p.rotation.y || 0) * Math.PI / 180,
+        (p.rotation.z || 0) * Math.PI / 180
+      );
+      partMesh.scale.set(p.scale.x, p.scale.y, p.scale.z);
+      partMesh.castShadow = true;
+      partMesh.receiveShadow = true;
+      group.add(partMesh);
+    });
+    
+    if (asset.category === 'vehicle' && wireframe && asset.sockets) {
+      const seatM = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+      seatM.position.set(asset.sockets.seat.x, asset.sockets.seat.y, asset.sockets.seat.z);
+      const wheelM = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), new THREE.MeshBasicMaterial({ color: 0xf59e0b }));
+      wheelM.position.set(asset.sockets.wheel.x, asset.sockets.wheel.y, asset.sockets.wheel.z);
+      const exitM = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+      exitM.position.set(asset.sockets.exit.x, asset.sockets.exit.y, asset.sockets.exit.z);
+      group.add(seatM, wheelM, exitM);
+    }
+    
+    group.name = 'custom_prop_group';
+    return group;
+  }
+
   adjustScaleSliders(type) {
     if (!this.rangeTileW || !this.rangeTileD || !this.rangeTileH) return;
     
@@ -326,7 +495,13 @@ export class MapEditor {
     const wireMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, transparent: true, opacity: 0.6 });
     let mesh;
     
-    if (type === 'lamp') {
+    if (type && type.startsWith('custom_')) {
+      const assetId = type.substring(7);
+      const asset = this.customAssets.find(a => a.id === assetId);
+      if (asset) {
+        mesh = this.buildCustomAssetMesh(asset, true);
+      }
+    } else if (type === 'lamp') {
       const g = new THREE.Group();
       const p = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.5, 0.15), wireMat);
       p.position.y = 1.75;
@@ -607,7 +782,7 @@ export class MapEditor {
       'lamp', 'street_light', 'bench', 'tree', 'pine_tree', 
       'hydrant', 'sign_no_parking', 'fountain', 'grass', 
       'tile', 'tycoon_button'
-    ].includes(this.selectedProp);
+    ].includes(this.selectedProp) || (this.selectedProp && this.selectedProp.startsWith('custom_'));
 
     if (this.subMode === 'props' && !isPlaceableProp) {
       this.raycastSelect(e);
@@ -646,8 +821,37 @@ export class MapEditor {
     const redMat = new THREE.MeshLambertMaterial({ color: 0xef4444 });
     
     // Construct real meshes
-    // Construct real meshes
-    if (type === 'lamp') {
+    if (type && type.startsWith('custom_')) {
+      const assetId = type.substring(7);
+      const asset = this.customAssets.find(a => a.id === assetId);
+      if (asset) {
+        visualMesh = this.buildCustomAssetMesh(asset, false);
+        
+        // Compute bounding box for physics body
+        const box = new THREE.Box3().setFromObject(visualMesh);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        
+        const halfX = Math.max(0.2, size.x / 2);
+        const halfY = Math.max(0.2, size.y / 2);
+        const halfZ = Math.max(0.2, size.z / 2);
+        
+        if (asset.category === 'vehicle') {
+          physicsBody = new CANNON.Body({
+            mass: 800, // Heavy dynamic vehicle body to prevent being pushed away easily
+            material: this.game.physicsManager.defaultMaterial,
+            linearDamping: 0.9, // High damping when parked to prevent drifting/sliding
+            angularDamping: 0.95,
+            fixedRotation: false
+          });
+          physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(halfX, halfY, halfZ)), new CANNON.Vec3(0, halfY, 0));
+        } else {
+          physicsBody = new CANNON.Body({ mass: 0 });
+          physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(halfX, halfY, halfZ)), new CANNON.Vec3(0, halfY, 0));
+        }
+      }
+    }
+    else if (type === 'lamp') {
       const g = new THREE.Group();
       const p = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.5, 0.15), darkGrey);
       p.position.y = 1.75;
@@ -1124,6 +1328,22 @@ export class MapEditor {
       });
     }
     
+    // Register custom vehicle interactable
+    if (type && type.startsWith('custom_')) {
+      const assetId = type.substring(7);
+      const asset = this.customAssets.find(a => a.id === assetId);
+      if (asset && asset.category === 'vehicle') {
+        this.game.sceneManager.interactables.push({
+          type: 'vehicle',
+          asset: asset,
+          mesh: visualMesh,
+          body: physicsBody,
+          position: visualMesh.position, // Reference so proximity check updates dynamically as vehicle moves
+          rotation: this.rotationAngle
+        });
+      }
+    }
+    
     // Register night lighting coordinates for Street Light
     if (type === 'street_light') {
       const headOffset = new THREE.Vector3(0, 4.29, 1.11);
@@ -1379,16 +1599,20 @@ export class MapEditor {
       return;
     }
     
-    const mapData = this.placedObjects.map(obj => ({
-      type: obj.type,
-      position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
-      rotation: obj.rotation,
-      height: obj.height,
-      color: obj.color,
-      tileScale: obj.tileScale
-    }));
+    const exportData = {
+      mapSize: this.game.city ? this.game.city.citySize : 2,
+      placements: this.placedObjects.map(obj => ({
+        type: obj.type,
+        position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+        rotation: obj.rotation,
+        height: obj.height,
+        color: obj.color,
+        tileScale: obj.tileScale
+      })),
+      customAssets: this.customAssets
+    };
     
-    const json = JSON.stringify(mapData, null, 2);
+    const json = JSON.stringify(exportData, null, 2);
     
     // Copy to clipboard and alert
     navigator.clipboard.writeText(json).then(() => {
@@ -1406,6 +1630,19 @@ export class MapEditor {
     try {
       const mapData = JSON.parse(json);
       
+      // Import custom assets if present
+      if (mapData && mapData.customAssets) {
+        const saved = localStorage.getItem('creator_assets');
+        const assetsList = saved ? JSON.parse(saved) : [];
+        mapData.customAssets.forEach(importedAsset => {
+          if (!assetsList.some(a => a.id === importedAsset.id)) {
+            assetsList.push(importedAsset);
+          }
+        });
+        localStorage.setItem('creator_assets', JSON.stringify(assetsList));
+        this.loadCustomAssets();
+      }
+      
       // Clear current placed objects
       this.placedObjects.forEach(obj => {
         this.game.sceneManager.scene.remove(obj.mesh);
@@ -1413,16 +1650,30 @@ export class MapEditor {
       });
       this.placedObjects = [];
       
+      const placements = Array.isArray(mapData) ? mapData : (mapData.placements || []);
+      const mapSize = Array.isArray(mapData) ? 2 : (mapData.mapSize || 2);
+      
+      if (this.game.city) {
+        this.game.city.rebuildGroundAndBoundaries(mapSize);
+        if (this.selectMapSize) this.selectMapSize.value = mapSize;
+      }
+      
+      let needDestroyGhost = false;
+      if (!this.ghostMesh) {
+        this.createGhost('hydrant');
+        needDestroyGhost = true;
+      }
+      
       // Rebuild objects
-      mapData.forEach(data => {
+      placements.forEach(data => {
         // Temporarily position ghost mesh to reuse placement logic
         this.rotationAngle = data.rotation;
         this.ghostMesh.position.set(data.position.x, data.position.y, data.position.z);
         
         // Handle building height range input sync
         if (data.type === 'building' && data.height) {
-          this.rangeHeight.value = data.height;
-          this.lblHeight.textContent = data.height;
+          if (this.rangeHeight) this.rangeHeight.value = data.height;
+          if (this.lblHeight) this.lblHeight.textContent = data.height;
         }
         if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
           this.inputBldColor.value = data.color;
@@ -1440,8 +1691,14 @@ export class MapEditor {
         this.placeObject(data.type);
       });
       
+      if (needDestroyGhost && this.ghostMesh) {
+        this.game.sceneManager.scene.remove(this.ghostMesh);
+        this.ghostMesh = null;
+      }
+      
       alert('Data Map berhasil di-Import!');
     } catch (e) {
+      console.error(e);
       alert('Gagal meng-Import Map. Format JSON salah!');
     }
   }
@@ -1463,7 +1720,8 @@ export class MapEditor {
         height: obj.height,
         color: obj.color,
         tileScale: obj.tileScale
-      }))
+      })),
+      customAssets: this.customAssets
     };
 
     savedMaps[name] = mapData;
@@ -1505,6 +1763,19 @@ export class MapEditor {
   loadMapData(mapData) {
     this.clearPlacements();
     if (!mapData) return;
+
+    // Import custom assets if present in mapData
+    if (mapData && mapData.customAssets) {
+      const saved = localStorage.getItem('creator_assets');
+      const assetsList = saved ? JSON.parse(saved) : [];
+      mapData.customAssets.forEach(importedAsset => {
+        if (!assetsList.some(a => a.id === importedAsset.id)) {
+          assetsList.push(importedAsset);
+        }
+      });
+      localStorage.setItem('creator_assets', JSON.stringify(assetsList));
+      this.loadCustomAssets();
+    }
 
     // Support backward compatibility (if mapData was just a list of placements)
     const placements = Array.isArray(mapData) ? mapData : (mapData.placements || []);

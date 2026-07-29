@@ -33,7 +33,7 @@ export class Game {
     // Wire interaction button logic
     this.uiManager.setInteractAction(() => {
       if (this.currentInteractable) {
-        if (this.player.state === 'sitting') {
+        if (this.player.state === 'sitting' || this.player.state === 'driving') {
           this.player.unsit();
         } else {
           this.player.sit(this.currentInteractable);
@@ -78,6 +78,22 @@ export class Game {
       // 1. Physics (fixed timestep internally)
       this.physicsManager.step(dt);
       
+      // Sync dynamic placed objects (like custom vehicles) from physics simulation
+      if (this.editorManager && this.editorManager.mapEditor && this.editorManager.mapEditor.placedObjects) {
+        this.editorManager.mapEditor.placedObjects.forEach(obj => {
+          if (obj.body && obj.body.mass > 0) {
+            obj.mesh.position.copy(obj.body.position);
+            obj.mesh.quaternion.copy(obj.body.quaternion);
+            
+            // Also sync interactable position if this vehicle is registered
+            const intr = this.sceneManager.interactables.find(item => item.body === obj.body);
+            if (intr) {
+              intr.position.copy(obj.body.position);
+            }
+          }
+        });
+      }
+      
       // 2. Game logic
       this.player.update(dt);
       this.npcManager.update(dt);
@@ -97,7 +113,7 @@ export class Game {
       let closestDist = Infinity;
       let closestItem = null;
       
-      if (this.player.state !== 'sitting') {
+      if (this.player.state !== 'sitting' && this.player.state !== 'driving') {
         for (const item of this.sceneManager.interactables) {
           const dist = this.player.mesh.position.distanceTo(item.position);
           if (dist < 2.5 && dist < closestDist) {
@@ -112,20 +128,31 @@ export class Game {
       this.currentInteractable = closestItem;
       
       if (this.currentInteractable) {
-        const btnText = this.player.state === 'sitting' ? 'Berdiri' : 'Duduk';
+        let btnText = 'Duduk';
+        if (this.player.state === 'sitting') {
+          btnText = 'Berdiri';
+        } else if (this.player.state === 'driving') {
+          btnText = 'Turun';
+        } else if (this.currentInteractable.type === 'vehicle') {
+          btnText = 'Kendarai';
+        }
         this.uiManager.toggleInteractButton(true, btnText);
       } else {
         this.uiManager.toggleInteractButton(false);
       }
     } else {
       // If editing, camera follows target position with different heights based on tab
-      const camTarget = this.player.mesh.position.clone();
-      if (this.editorManager.activeTab === 'character') {
-        camTarget.y += 1.0;
+      if (this.editorManager && this.editorManager.activeTab === 'creator') {
+        this.cameraManager.update(this.editorManager.creatorStudio.workspaceCenter, dt);
       } else {
-        camTarget.y += 0.5; // lower focus for placing props/roads
+        const camTarget = this.player.mesh.position.clone();
+        if (this.editorManager.activeTab === 'character') {
+          camTarget.y += 1.0;
+        } else {
+          camTarget.y += 0.5; // lower focus for placing props/roads
+        }
+        this.cameraManager.update(camTarget, dt);
       }
-      this.cameraManager.update(camTarget, dt);
     }
     
     // 5. UI

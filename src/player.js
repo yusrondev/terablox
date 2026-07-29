@@ -30,6 +30,7 @@ export class Player {
     this.canJump = false;
     this.animTime = 0;
     this.state = 'idle';
+    this.currentVehicle = null;
     
     // Reusable temp vectors (avoid GC pressure per frame)
     this._moveDir = new THREE.Vector3();
@@ -140,6 +141,73 @@ export class Player {
   }
   
   update(deltaTime) {
+    // Driving State logic
+    if (this.state === 'driving') {
+      if (!this.currentVehicle || !this.currentVehicle.mesh || !this.currentVehicle.body) {
+        this.state = 'idle';
+        this.body.type = CANNON.Body.DYNAMIC;
+        return;
+      }
+      
+      // 1. Jump to unsit (exit vehicle)
+      if (this.controlsManager.keys.jump) {
+        this.unsit();
+        return;
+      }
+      
+      // 2. Drive the vehicle
+      if (this.currentVehicle.body) {
+        this.currentVehicle.body.wakeUp();
+      }
+      
+      const heading = new THREE.Vector3(0, 0, 1).applyQuaternion(this.currentVehicle.mesh.quaternion);
+      const driveSpeed = 16.0; // max driving speed
+      let moveDir = 0;
+      if (this.controlsManager.keys.forward) moveDir = 1;
+      if (this.controlsManager.keys.backward) moveDir = -1;
+      
+      const targetVel = heading.multiplyScalar(moveDir * driveSpeed);
+      this.currentVehicle.body.velocity.x = targetVel.x;
+      this.currentVehicle.body.velocity.z = targetVel.z;
+      
+      // A/D steering or joystick X-axis steering
+      let steerDir = 0;
+      if (this.controlsManager.keys.left) steerDir = 1;
+      if (this.controlsManager.keys.right) steerDir = -1;
+      
+      if (this.controlsManager.joystickVector && this.controlsManager.joystickVector.x !== 0) {
+        steerDir = -this.controlsManager.joystickVector.x;
+      }
+      
+      const steerSpeed = 2.2;
+      this.currentVehicle.body.angularVelocity.y = steerDir * steerSpeed;
+      
+      // 3. Keep player mesh snapped to vehicle seat coordinate offset
+      const s = this.currentVehicle.asset.sockets.seat;
+      const seatOffset = new THREE.Vector3(s.x, s.y, s.z);
+      seatOffset.applyQuaternion(this.currentVehicle.mesh.quaternion);
+      
+      this.mesh.position.copy(this.currentVehicle.mesh.position).add(seatOffset);
+      this.mesh.position.y -= 1.4; // Offset so player's butt sits on the seat instead of their feet standing on it
+      this.mesh.quaternion.copy(this.currentVehicle.mesh.quaternion);
+      
+      // Sync player physics body to match mesh position
+      this.body.position.copy(this.mesh.position);
+      this.body.velocity.set(0, 0, 0);
+      
+      // Update limb animations manually (sit pose)
+      this.leftArm.rotation.x = -1.2;
+      this.rightArm.rotation.x = -1.2;
+      this.leftLeg.rotation.x = -Math.PI / 2;
+      this.rightLeg.rotation.x = -Math.PI / 2;
+      this.leftArm.rotation.y = 0;
+      this.rightArm.rotation.y = 0;
+      this.leftLeg.rotation.y = 0;
+      this.rightLeg.rotation.y = 0;
+      
+      return;
+    }
+
     const input = this.controlsManager.getMovementVector();
     const moving = (input.x !== 0 || input.z !== 0);
     const sprinting = this.controlsManager.keys.sprint;
@@ -331,36 +399,117 @@ export class Player {
   }
   
   sit(interactable) {
-    this.state = 'sitting';
-    
-    // Face the opposite direction of the backrest (forward facing)
-    const sitRot = interactable.rotation + Math.PI;
-    
-    // Offset forward (away from backrest) - reduced to 0.1m to keep butt pushed back on the seat
-    const forwardDx = Math.sin(sitRot) * 0.1;
-    const forwardDz = Math.cos(sitRot) * 0.1;
-    
-    // Position physics body safely at seat level (0.95m), above ground to prevent physics glitches
-    this.body.position.set(
-      interactable.position.x + forwardDx,
-      interactable.position.y,
-      interactable.position.z + forwardDz
-    );
-    this.body.velocity.set(0, 0, 0);
-    
-    // Disable physics rotation/movement while sitting
-    this.body.type = CANNON.Body.KINEMATIC;
-    
-    // Rotate character to face forward
-    this.mesh.rotation.y = sitRot;
+    if (interactable.type === 'vehicle') {
+      this.state = 'driving';
+      this.currentVehicle = interactable;
+      
+      // Remove player physics body from world to prevent collision overlaps/explosions with the vehicle
+      this.physicsManager.world.removeBody(this.body);
+      
+      this.body.type = CANNON.Body.KINEMATIC;
+      this.body.velocity.set(0, 0, 0);
+      
+      const s = interactable.asset.sockets.seat;
+      const seatOffset = new THREE.Vector3(s.x, s.y, s.z);
+      seatOffset.applyQuaternion(interactable.mesh.quaternion);
+      
+      this.mesh.position.copy(interactable.mesh.position).add(seatOffset);
+      this.mesh.position.y -= 1.4; // Offset so player's butt sits on the seat instead of their feet standing on it
+      this.mesh.quaternion.copy(interactable.mesh.quaternion);
+      this.body.position.copy(this.mesh.position);
+      
+      // Reduce damping of vehicle for smooth driving
+      if (this.currentVehicle.body) {
+        this.currentVehicle.body.linearDamping = 0.1;
+        this.currentVehicle.body.angularDamping = 0.1;
+        this.currentVehicle.body.wakeUp();
+      }
+      
+      // Show/Hide mobile button overlays
+      const btnGas = document.getElementById('btn-gas');
+      const btnRem = document.getElementById('btn-rem');
+      const btnSprint = document.getElementById('btn-sprint');
+      const btnJump = document.getElementById('btn-jump');
+      if (btnGas) btnGas.style.display = 'block';
+      if (btnRem) btnRem.style.display = 'block';
+      if (btnSprint) btnSprint.style.display = 'none';
+      if (btnJump) btnJump.textContent = 'Turun';
+    } else {
+      this.state = 'sitting';
+      
+      // Face the opposite direction of the backrest (forward facing)
+      const sitRot = interactable.rotation + Math.PI;
+      
+      // Offset forward (away from backrest) - reduced to 0.1m to keep butt pushed back on the seat
+      const forwardDx = Math.sin(sitRot) * 0.1;
+      const forwardDz = Math.cos(sitRot) * 0.1;
+      
+      // Position physics body safely at seat level (0.95m), above ground to prevent physics glitches
+      this.body.position.set(
+        interactable.position.x + forwardDx,
+        interactable.position.y,
+        interactable.position.z + forwardDz
+      );
+      this.body.velocity.set(0, 0, 0);
+      
+      // Disable physics rotation/movement while sitting
+      this.body.type = CANNON.Body.KINEMATIC;
+      
+      // Rotate character to face forward
+      this.mesh.rotation.y = sitRot;
+    }
   }
   
   unsit() {
-    this.state = 'idle';
-    this.body.type = CANNON.Body.DYNAMIC;
-    
-    // Jump slightly to pop off the bench
-    this.body.velocity.y = 5.0;
+    if (this.state === 'driving') {
+      if (this.currentVehicle) {
+        // Set high damping when not driven so it stops instantly and doesn't roll/drift away
+        if (this.currentVehicle.body) {
+          this.currentVehicle.body.linearDamping = 0.9;
+          this.currentVehicle.body.angularDamping = 0.95;
+          this.currentVehicle.body.velocity.set(0, 0, 0);
+          this.currentVehicle.body.angularVelocity.set(0, 0, 0);
+        }
+        
+        const exitSocket = this.currentVehicle.asset.sockets.exit;
+        const exitOffset = new THREE.Vector3(exitSocket.x, exitSocket.y, exitSocket.z);
+        exitOffset.applyQuaternion(this.currentVehicle.mesh.quaternion);
+        const exitWorldPos = this.currentVehicle.mesh.position.clone().add(exitOffset);
+        
+        // Reset player rotation x and z to keep them perfectly upright upon exiting
+        const yaw = this.mesh.rotation.y;
+        this.mesh.rotation.set(0, yaw, 0);
+        
+        // Add player physics body back to the world
+        this.physicsManager.world.addBody(this.body);
+        
+        this.body.position.copy(exitWorldPos);
+        this.body.type = CANNON.Body.DYNAMIC;
+        this.state = 'idle';
+        
+        // Reset velocities
+        this.body.velocity.set(0, 0, 0);
+        this.body.angularVelocity.set(0, 0, 0);
+        
+        this.currentVehicle = null;
+      }
+      
+      // Reset mobile button overlays
+      const btnGas = document.getElementById('btn-gas');
+      const btnRem = document.getElementById('btn-rem');
+      const btnSprint = document.getElementById('btn-sprint');
+      const btnJump = document.getElementById('btn-jump');
+      if (btnGas) btnGas.style.display = 'none';
+      if (btnRem) btnRem.style.display = 'none';
+      if (btnSprint) btnSprint.style.display = 'block';
+      if (btnJump) btnJump.textContent = 'Jump';
+    } else {
+      this.state = 'idle';
+      this.body.type = CANNON.Body.DYNAMIC;
+      
+      // Jump slightly to pop off the bench
+      this.body.velocity.y = 5.0;
+    }
     
     // Reset control flag so they don't immediately jump again if they used jump to unsit
     this.controlsManager.keys.jump = false;

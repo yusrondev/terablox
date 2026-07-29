@@ -38,6 +38,8 @@ export class JoystickManager {
     // Action Buttons
     const btnJump = document.getElementById('btn-jump');
     const btnSprint = document.getElementById('btn-sprint');
+    const btnGas = document.getElementById('btn-gas');
+    const btnRem = document.getElementById('btn-rem');
     
     btnJump.addEventListener('touchstart', (e) => {
       e.preventDefault();
@@ -56,5 +58,27 @@ export class JoystickManager {
       e.preventDefault();
       this.controls.keys.sprint = false;
     });
+    
+    if (btnGas) {
+      btnGas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.controls.keys.forward = true;
+      });
+      btnGas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        this.controls.keys.forward = false;
+      });
+    }
+    
+    if (btnRem) {
+      btnRem.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.controls.keys.backward = true;
+      });
+      btnRem.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        this.controls.keys.backward = false;
+      });
+    }
   }
 }

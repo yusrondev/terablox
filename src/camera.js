@@ -40,7 +40,7 @@ export class CameraManager {
     this.domElement.addEventListener('mousedown', () => { this.isDragging = true; });
     document.addEventListener('mouseup', () => { this.isDragging = false; });
     document.addEventListener('mousemove', (e) => {
-      if (!this.isDragging) return;
+      if (!this.isDragging || this.dragSuspended) return;
       
       if (this.isPanning) {
         // Calculate forward and right vectors relative to camera horizontal orientation
