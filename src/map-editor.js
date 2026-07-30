@@ -41,6 +41,7 @@ export class MapEditor {
     this.selectedTileColor = '#ffffff';
     this.history = []; // History stack for Ctrl+Z undo
     this.dragStartPos = { x: 0, y: 0 }; // Track camera drags
+    this.npcCount = 20; // Default global NPC count
     
     this.setupUI();
     this.setupListeners();
@@ -65,6 +66,16 @@ export class MapEditor {
     this.checkSnap.addEventListener('change', (e) => {
       this.snapEnabled = e.target.checked;
     });
+    
+    // NPC Count Slider
+    this.rangeNpcCount = document.getElementById('range-npc-count');
+    this.lblNpcCount = document.getElementById('lbl-npc-count');
+    if (this.rangeNpcCount && this.lblNpcCount) {
+      this.rangeNpcCount.addEventListener('input', (e) => {
+        this.npcCount = parseInt(e.target.value);
+        this.lblNpcCount.innerText = this.npcCount;
+      });
+    }
     
     // Props Catalog Click
     if (this.catalogList) {
@@ -213,6 +224,10 @@ export class MapEditor {
       const swatches = this.pickerTile.querySelectorAll('.color-swatch');
       if (swatches.length > 0) swatches[swatches.length - 1].classList.add('active');
     }
+    
+    // Sidebar Map List setup
+    this.sidebarMapList = document.getElementById('sidebar-map-list');
+    this.loadAndRenderSavedMaps();
   }
 
   loadCustomAssets() {
@@ -699,6 +714,23 @@ export class MapEditor {
       }
       mesh = g;
       mesh.position.y = 0;
+    } else if (type === 'spawn_point') {
+      const g = new THREE.Group();
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.1, 8), wireMat);
+      pad.position.y = 0.05;
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.8, 8), wireMat);
+      body.position.y = 0.9;
+      g.add(pad, body);
+      mesh = g;
+    } else if (type === 'spawn_npc') {
+      const g = new THREE.Group();
+      const padMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true, transparent: true, opacity: 0.6 });
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.1, 8), padMat);
+      pad.position.y = 0.05;
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.8, 8), padMat);
+      body.position.y = 0.9;
+      g.add(pad, body);
+      mesh = g;
     }
     
     this.ghostMesh = mesh;
@@ -795,7 +827,7 @@ export class MapEditor {
     const isPlaceableProp = [
       'lamp', 'street_light', 'bench', 'tree', 'pine_tree', 
       'hydrant', 'sign_no_parking', 'fountain', 'grass', 
-      'tile', 'tycoon_button'
+      'tile', 'tycoon_button', 'spawn_point', 'spawn_npc'
     ].includes(this.selectedProp) || (this.selectedProp && this.selectedProp.startsWith('custom_'));
 
     if (this.subMode === 'props' && !isPlaceableProp) {
@@ -1104,6 +1136,26 @@ export class MapEditor {
       m.name = 'road_custom';
       g.add(m);
       g.name = 'road_custom';
+      visualMesh = g;
+    } 
+    else if (type === 'spawn_point') {
+      const g = new THREE.Group();
+      const greenBasic = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.1, 8), greenBasic);
+      pad.position.y = 0.05;
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.8, 8), greenBasic);
+      body.position.y = 0.9;
+      g.add(pad, body);
+      visualMesh = g;
+    }
+    else if (type === 'spawn_npc') {
+      const g = new THREE.Group();
+      const orangeBasic = new THREE.MeshBasicMaterial({ color: 0xffaa00, side: THREE.DoubleSide });
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.1, 8), orangeBasic);
+      pad.position.y = 0.05;
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.8, 8), orangeBasic);
+      body.position.y = 0.9;
+      g.add(pad, body);
       visualMesh = g;
     } 
     else if (type === 'terrain_block') {
@@ -1627,6 +1679,7 @@ export class MapEditor {
     
     const exportData = {
       mapSize: this.game.city ? this.game.city.citySize : 2,
+      npcCount: this.npcCount || 20,
       placements: this.placedObjects.map(obj => ({
         type: obj.type,
         position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
@@ -1655,77 +1708,155 @@ export class MapEditor {
     
     try {
       const mapData = JSON.parse(json);
-      
-      // Import custom assets if present
-      if (mapData && mapData.customAssets) {
-        const saved = localStorage.getItem('creator_assets');
-        const assetsList = saved ? JSON.parse(saved) : [];
-        mapData.customAssets.forEach(importedAsset => {
-          if (!assetsList.some(a => a.id === importedAsset.id)) {
-            assetsList.push(importedAsset);
-          }
-        });
-        localStorage.setItem('creator_assets', JSON.stringify(assetsList));
-        this.loadCustomAssets();
-      }
-      
-      // Clear current placed objects
-      this.placedObjects.forEach(obj => {
-        this.game.sceneManager.scene.remove(obj.mesh);
-        if (obj.body) this.game.physicsManager.world.removeBody(obj.body);
-      });
-      this.placedObjects = [];
-      
-      const placements = Array.isArray(mapData) ? mapData : (mapData.placements || []);
-      const mapSize = Array.isArray(mapData) ? 2 : (mapData.mapSize || 2);
-      
-      if (this.game.city) {
-        this.game.city.rebuildGroundAndBoundaries(mapSize);
-        if (this.selectMapSize) this.selectMapSize.value = mapSize;
-      }
-      
-      let needDestroyGhost = false;
-      if (!this.ghostMesh) {
-        this.createGhost('hydrant');
-        needDestroyGhost = true;
-      }
-      
-      // Rebuild objects
-      placements.forEach(data => {
-        // Temporarily position ghost mesh to reuse placement logic
-        this.rotationAngle = data.rotation;
-        this.ghostMesh.position.set(data.position.x, data.position.y, data.position.z);
-        
-        // Handle building height range input sync
-        if (data.type === 'building' && data.height) {
-          if (this.rangeHeight) this.rangeHeight.value = data.height;
-          if (this.lblHeight) this.lblHeight.textContent = data.height;
-        }
-        if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
-          this.inputBldColor.value = data.color;
-        }
-        if (['tile', 'terrain_block', 'water', 'road_ramp'].includes(data.type)) {
-          if (data.type === 'tile' && data.color) this.selectedTileColor = data.color;
-          if (data.tileScale) {
-            if (this.rangeTileW) { this.rangeTileW.value = data.tileScale.w; this.lblTileW.textContent = data.tileScale.w; }
-            if (this.rangeTileD) { this.rangeTileD.value = data.tileScale.d; this.lblTileD.textContent = data.tileScale.d; }
-            if (this.rangeTileH) { this.rangeTileH.value = data.tileScale.h; this.lblTileH.textContent = data.tileScale.h; }
-          }
-        }
-        
-        // Instantiate real objects
-        this.placeObject(data.type);
-      });
-      
-      if (needDestroyGhost && this.ghostMesh) {
-        this.game.sceneManager.scene.remove(this.ghostMesh);
-        this.ghostMesh = null;
-      }
-      
+      this.applyMapData(mapData);
       alert('Data Map berhasil di-Import!');
     } catch (e) {
       console.error(e);
       alert('Gagal meng-Import Map. Format JSON salah!');
+    }
+  }
+
+  applyMapData(mapData) {
+    // Import custom assets if present
+    if (mapData && mapData.customAssets) {
+      const saved = localStorage.getItem('creator_assets');
+      const assetsList = saved ? JSON.parse(saved) : [];
+      mapData.customAssets.forEach(importedAsset => {
+        if (!assetsList.some(a => a.id === importedAsset.id)) {
+          assetsList.push(importedAsset);
+        }
+      });
+      localStorage.setItem('creator_assets', JSON.stringify(assetsList));
+      this.loadCustomAssets();
+    }
+    
+    // Clear current placed objects
+    this.placedObjects.forEach(obj => {
+      this.game.sceneManager.scene.remove(obj.mesh);
+      if (obj.body) this.game.physicsManager.world.removeBody(obj.body);
+    });
+    this.placedObjects = [];
+    
+    const placements = Array.isArray(mapData) ? mapData : (mapData.placements || []);
+    const mapSize = Array.isArray(mapData) ? 2 : (mapData.mapSize || 2);
+    
+    // Load NPC settings
+    if (mapData && mapData.npcCount !== undefined) {
+      this.npcCount = mapData.npcCount;
+    } else {
+      this.npcCount = 20;
+    }
+    if (this.rangeNpcCount) this.rangeNpcCount.value = this.npcCount;
+    if (this.lblNpcCount) this.lblNpcCount.innerText = this.npcCount;
+    
+    if (this.game.city) {
+      this.game.city.rebuildGroundAndBoundaries(mapSize);
+      if (this.selectMapSize) this.selectMapSize.value = mapSize;
+    }
+    
+    let needDestroyGhost = false;
+    if (!this.ghostMesh) {
+      this.createGhost('hydrant');
+      needDestroyGhost = true;
+    }
+    
+    // Rebuild objects
+    placements.forEach(data => {
+      // Temporarily position ghost mesh to reuse placement logic
+      this.rotationAngle = data.rotation;
+      this.ghostMesh.position.set(data.position.x, data.position.y, data.position.z);
+      
+      // Handle building height range input sync
+      if (data.type === 'building' && data.height) {
+        if (this.rangeHeight) this.rangeHeight.value = data.height;
+        if (this.lblHeight) this.lblHeight.textContent = data.height;
+      }
+      if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
+        this.inputBldColor.value = data.color;
+      }
+      if (['tile', 'terrain_block', 'water', 'road_ramp'].includes(data.type)) {
+        if (data.type === 'tile' && data.color) this.selectedTileColor = data.color;
+        if (data.tileScale) {
+          if (this.rangeTileW) { this.rangeTileW.value = data.tileScale.w; this.lblTileW.textContent = data.tileScale.w; }
+          if (this.rangeTileD) { this.rangeTileD.value = data.tileScale.d; this.lblTileD.textContent = data.tileScale.d; }
+          if (this.rangeTileH) { this.rangeTileH.value = data.tileScale.h; this.lblTileH.textContent = data.tileScale.h; }
+        }
+      }
+      
+      // Instantiate real objects
+      this.placeObject(data.type);
+    });
+    
+    if (needDestroyGhost && this.ghostMesh) {
+      this.game.sceneManager.scene.remove(this.ghostMesh);
+      this.ghostMesh = null;
+    }
+  }
+
+  async loadAndRenderSavedMaps() {
+    if (!this.sidebarMapList) return;
+    try {
+      const res = await fetch('/api/load-maps?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error("Failed to load maps");
+      const savedMaps = await res.json();
+      
+      this.sidebarMapList.innerHTML = '';
+      const keys = Object.keys(savedMaps);
+      if (keys.length === 0) {
+        this.sidebarMapList.innerHTML = `<div style="color: #888; text-align: center; font-size: 11px; padding: 10px;">Belum ada map tersimpan.</div>`;
+        return;
+      }
+      
+      keys.forEach(mapName => {
+        const item = document.createElement('div');
+        item.className = 'sidebar-map-item';
+        item.innerHTML = `
+          <div class="sidebar-map-item-info">
+            <span class="sidebar-map-item-title">${mapName}</span>
+          </div>
+          <div class="sidebar-map-item-actions">
+            <button class="sidebar-map-item-btn btn-load" title="Load Map">📂 Load</button>
+            <button class="sidebar-map-item-btn btn-delete" title="Hapus Map">🗑️</button>
+          </div>
+        `;
+        
+        // Load event
+        item.querySelector('.btn-load').addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm(`Apakah Anda yakin ingin me-load map "${mapName}"? Perubahan saat ini yang belum disimpan akan hilang.`)) {
+            this.applyMapData(savedMaps[mapName]);
+            alert(`Map "${mapName}" berhasil di-load!`);
+          }
+        });
+        
+        // Delete event
+        item.querySelector('.btn-delete').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (confirm(`Apakah Anda yakin ingin menghapus map "${mapName}" dari Project?`)) {
+            delete savedMaps[mapName];
+            try {
+              const saveRes = await fetch('/api/save-maps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(savedMaps)
+              });
+              if (saveRes.ok) {
+                alert(`Map "${mapName}" berhasil dihapus.`);
+                this.loadAndRenderSavedMaps();
+              } else {
+                alert('Gagal menghapus map: Server error');
+              }
+            } catch (err) {
+              alert('Gagal menghapus map: ' + err.message);
+            }
+          }
+        });
+        
+        this.sidebarMapList.appendChild(item);
+      });
+    } catch (err) {
+      console.error('Error rendering sidebar maps:', err);
+      this.sidebarMapList.innerHTML = `<div style="color: #ef4444; text-align: center; font-size: 11px; padding: 10px;">Gagal memuat list map.</div>`;
     }
   }
 
@@ -1750,6 +1881,7 @@ export class MapEditor {
 
       const mapData = {
         mapSize: this.game.city ? this.game.city.citySize : 2,
+        npcCount: this.npcCount || 20,
         placements: this.placedObjects.map(obj => ({
           type: obj.type,
           position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
@@ -1771,6 +1903,7 @@ export class MapEditor {
       
       if (saveRes.ok) {
         alert(`Map "${name}" berhasil disimpan ke Project!`);
+        this.loadAndRenderSavedMaps();
       } else {
         alert(`Gagal menyimpan map: Server error`);
       }

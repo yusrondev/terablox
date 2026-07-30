@@ -35,10 +35,10 @@ export class SceneManager {
     this.weatherManager = new WeatherManager(this);
     
     // Flat unlit materials for GTA V style minimap (immune to night & weather)
-    this.flatMinimapGroundMat = new THREE.MeshBasicMaterial({ color: 0x181c22 });
-    this.flatMinimapRoadMat   = new THREE.MeshBasicMaterial({ color: 0x6e7a89 });
+    this.flatMinimapGroundMat = new THREE.MeshBasicMaterial({ color: 0x181c22, side: THREE.DoubleSide });
+    this.flatMinimapRoadMat   = new THREE.MeshBasicMaterial({ color: 0x6e7a89, side: THREE.DoubleSide });
     // IMPORTANT: InstancedMesh requires its own material compilation instance!
-    this.flatMinimapRoadMatInstanced = new THREE.MeshBasicMaterial({ color: 0x6e7a89 });
+    this.flatMinimapRoadMatInstanced = new THREE.MeshBasicMaterial({ color: 0x6e7a89, side: THREE.DoubleSide });
     
     window.addEventListener('resize', this.onWindowResize.bind(this));
 
@@ -500,6 +500,25 @@ export class SceneManager {
     }
   }
 
+  compileShaders() {
+    if (this.renderer && this.scene && this.camera && this.camera.camera) {
+      console.log("Pre-compiling WebGL shaders to eliminate runtime stutter...");
+      
+      // Warm up main camera shaders
+      this.renderer.compile(this.scene, this.camera.camera);
+      
+      // Warm up minimap camera shaders
+      if (!this.minimapCamera) {
+        const aspect = 120 / 80;
+        const size = 35;
+        this.minimapCamera = new THREE.OrthographicCamera(-size * aspect, size * aspect, size, -size, 1, 300);
+      }
+      this.renderer.compile(this.scene, this.minimapCamera);
+      
+      console.log("Shader pre-compilation completed successfully.");
+    }
+  }
+
   renderMinimap(playerPos) {
     if (!this.minimapCamera) {
       const aspect = 120 / 80; // Smaller minimap aspect ratio
@@ -554,8 +573,15 @@ export class SceneManager {
     this.scene.traverse(child => {
       // Include child.isPoints to catch stars and rain systems
       if (child.isMesh || child.isInstancedMesh || child.isPoints) {
-        const isRoad = (child.name === 'road_default' || child.name === 'road_custom');
-        const isGround = (child.name === 'ground_default');
+        // Detect default instanced roads or custom placed roads by name, type, material reference, or UUID
+        const isRoad = (child.name === 'road_default' || 
+                        child.name === 'road_custom' ||
+                        child.name === 'roadIM' ||
+                        (child.isInstancedMesh && child.geometry && (child.geometry.type === 'PlaneGeometry' || child.geometry.constructor.name === 'PlaneGeometry')) ||
+                        (this.roadMaterial && child.material === this.roadMaterial) ||
+                        (this.roadMaterial && child.material && child.material.uuid === this.roadMaterial.uuid));
+        const isGround = (child.name === 'ground_default' || 
+                          (child.geometry && child.geometry.type === 'PlaneGeometry' && !isRoad && child.name !== 'player'));
         
         if (isRoad) {
           restoredMaterials.set(child, child.material);

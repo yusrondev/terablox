@@ -46,6 +46,29 @@ export class Game {
     // Load custom map data if provided
     if (options.mapData) {
       this.editorManager.mapEditor.loadMapData(options.mapData);
+      
+      // 1. Position player at spawn point if available
+      const spawnObj = this.editorManager.mapEditor.placedObjects.find(obj => obj.type === 'spawn_point');
+      if (spawnObj && this.player && this.player.body) {
+        this.player.body.position.set(spawnObj.position.x, spawnObj.position.y + 1, spawnObj.position.z);
+      }
+      
+      // 2. Configure NPC spawning from map settings
+      const roamingCount = (options.mapData.npcCount !== undefined) ? options.mapData.npcCount : 20;
+      const fixedNpcSpawns = [];
+      this.editorManager.mapEditor.placedObjects.forEach(obj => {
+        if (obj.type === 'spawn_npc') {
+          fixedNpcSpawns.push(obj.position);
+        }
+      });
+      this.npcManager.spawnNPCs(roamingCount, fixedNpcSpawns);
+      
+      // 3. Hide spawn indicators in play mode
+      this.editorManager.mapEditor.placedObjects.forEach(obj => {
+        if (obj.type === 'spawn_point' || obj.type === 'spawn_npc') {
+          obj.mesh.visible = false;
+        }
+      });
     }
     
     // Enter editor mode directly if configured
@@ -54,6 +77,9 @@ export class Game {
         this.editorManager.enterEditorMode();
       }, 50); // small delay to let Three.js scene initialize
     }
+    
+    // Pre-compile all WebGL shaders to prevent runtime lag spikes (micro-stutters)
+    this.sceneManager.compileShaders();
     
     this.loop = this.loop.bind(this);
   }

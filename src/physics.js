@@ -28,6 +28,10 @@ export class PhysicsManager {
     this.world.addBody(body);
   }
   
+  removeBody(body) {
+    this.world.removeBody(body);
+  }
+  
   step(deltaTime) {
     // Smooth timestep for high refresh rate monitors (120Hz, 144Hz, 60Hz)
     this.world.step(1 / 60, deltaTime, 5);

@@ -107,6 +107,16 @@ export class UIManager {
         }
       });
     });
+
+    // FPS Toggle
+    const fpsCheckbox = document.getElementById('check-show-fps');
+    if (fpsCheckbox && this.fpsCounter) {
+      fpsCheckbox.addEventListener('change', (e) => {
+        this.fpsCounter.style.display = e.target.checked ? 'block' : 'none';
+      });
+      // Set initial state
+      this.fpsCounter.style.display = fpsCheckbox.checked ? 'block' : 'none';
+    }
   }
   
   update(activeTab) {

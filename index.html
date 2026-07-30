@@ -153,6 +153,14 @@
                 <span class="icon">🔘</span>
                 <span class="name">Tycoon Button</span>
               </div>
+              <div class="catalog-item" data-prop="spawn_point">
+                <span class="icon">🟢</span>
+                <span class="name">Spawn Player</span>
+              </div>
+              <div class="catalog-item" data-prop="spawn_npc">
+                <span class="icon">🟠</span>
+                <span class="name">Spawn NPC</span>
+              </div>
             </div>
             
             <h5 style="margin-top: 15px; margin-bottom: 6px; color: #10b981; font-weight: bold; font-size: 12px;">Custom Assets</h5>
@@ -190,6 +198,10 @@
                 <option value="4">Extra Large (360m x 360m)</option>
               </select>
             </div>
+            <div class="control-group" style="margin-bottom: 12px;">
+              <label>Jumlah Roaming NPC: <span id="lbl-npc-count">20</span></label>
+              <input type="range" id="range-npc-count" min="0" max="60" value="20" style="width: 100%;">
+            </div>
             <div class="brush-selector">
               <button class="brush-btn active" data-brush="road">Paint Road</button>
               <button class="brush-btn" data-brush="road_roundabout">Paint Roundabout</button>
@@ -218,6 +230,11 @@
                <button id="btn-save-map" class="editor-action-btn">Save Map to Studio</button>
                <button id="btn-export-map" class="editor-action-btn sec-btn">Export Map JSON</button>
                 <button id="btn-import-map" class="editor-action-btn sec-btn">Import Map JSON</button>
+              </div>
+              
+              <h5 style="margin-top: 15px; margin-bottom: 6px; color: #10b981; font-weight: bold; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">Saved Studio Maps</h5>
+              <div id="sidebar-map-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 6px; border: 1px solid rgba(255,255,255,0.1); margin-top: 6px;">
+                <div style="color: #888; text-align: center; font-size: 11px; padding: 10px;">Belum ada map tersimpan.</div>
               </div>
            </div>
            
@@ -420,6 +437,14 @@
               <button class="graphics-btn" data-graphics="med" title="Medium">Med</button>
               <button class="graphics-btn" data-graphics="high" title="High">High</button>
             </div>
+          </div>
+          
+          <div class="settings-section" style="margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+            <div class="settings-section-title">LAINNYA</div>
+            <label style="display: flex; align-items: center; justify-content: space-between; color: white; font-size: 13px; cursor: pointer;">
+              <span>Tampilkan FPS</span>
+              <input type="checkbox" id="check-show-fps" checked style="width: 16px; height: 16px; cursor: pointer; accent-color: #3b82f6;">
+            </label>
           </div>
         </div>
         <button id="btn-settings-toggle" class="glass-btn">⚙️</button>

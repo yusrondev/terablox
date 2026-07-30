@@ -9,10 +9,27 @@ export class NPCManager {
     this.physicsManager = physicsManager;
     this.npcs = [];
     
-    // Spawn only 3 NPCs to reduce physics & draw call overhead
-    for (let i = 0; i < 3; i++) {
-      const x = (Math.random() - 0.5) * 30;
-      const z = (Math.random() - 0.5) * 30;
+    // Spawn default 3 NPCs initially
+    this.spawnNPCs(3, []);
+  }
+  
+  spawnNPCs(roamingCount = 3, fixedSpawns = []) {
+    // Clear any existing NPCs
+    this.npcs.forEach(npc => {
+      if (npc.mesh) this.sceneManager.scene.remove(npc.mesh);
+      if (npc.body) this.physicsManager.removeBody(npc.body);
+    });
+    this.npcs = [];
+    
+    // 1. Spawn fixed NPCs at specific coordinates
+    fixedSpawns.forEach(loc => {
+      this.npcs.push(new NPC(this.sceneManager, this.physicsManager, loc.x, loc.z));
+    });
+    
+    // 2. Spawn randomly distributed roaming NPCs
+    for (let i = 0; i < roamingCount; i++) {
+      const x = (Math.random() - 0.5) * 60;
+      const z = (Math.random() - 0.5) * 60;
       this.npcs.push(new NPC(this.sceneManager, this.physicsManager, x, z));
     }
   }
@@ -56,19 +73,27 @@ class NPC {
     
     this.leftLeg  = new THREE.Group();
     this.leftLeg.position.set( 0.28, 1.5, 0);
-    this.leftLeg.add(new THREE.Mesh(_legGeo, _pantsMat));
+    const leftLegMesh = new THREE.Mesh(_legGeo, _pantsMat);
+    leftLegMesh.position.y = -0.75;
+    this.leftLeg.add(leftLegMesh);
     
     this.rightLeg = new THREE.Group();
     this.rightLeg.position.set(-0.28, 1.5, 0);
-    this.rightLeg.add(new THREE.Mesh(_legGeo, _pantsMat));
+    const rightLegMesh = new THREE.Mesh(_legGeo, _pantsMat);
+    rightLegMesh.position.y = -0.75;
+    this.rightLeg.add(rightLegMesh);
     
     this.leftArm  = new THREE.Group();
     this.leftArm.position.set( 0.8, 3.0, 0);
-    this.leftArm.add(new THREE.Mesh(_armGeo, _skinMat));
+    const leftArmMesh = new THREE.Mesh(_armGeo, _skinMat);
+    leftArmMesh.position.y = -0.7;
+    this.leftArm.add(leftArmMesh);
     
     this.rightArm = new THREE.Group();
     this.rightArm.position.set(-0.8, 3.0, 0);
-    this.rightArm.add(new THREE.Mesh(_armGeo, _skinMat));
+    const rightArmMesh = new THREE.Mesh(_armGeo, _skinMat);
+    rightArmMesh.position.y = -0.7;
+    this.rightArm.add(rightArmMesh);
     
     const torso = new THREE.Mesh(_torsoGeo, shirtMat);
     torso.position.set(0, 2.25, 0);
@@ -139,12 +164,44 @@ class NPC {
       }
     }
     
+    // Lookahead building obstacle avoidance
+    if (this.state === 'walk') {
+      const lookAheadDist = 2.5;
+      const lookAheadPos = new THREE.Vector3(
+        px + this.direction.x * lookAheadDist,
+        py + 0.5,
+        pz + this.direction.z * lookAheadDist
+      );
+      
+      let willCollide = false;
+      const boxes = this.sceneManager.buildingBoxes || [];
+      for (let i = 0; i < boxes.length; i++) {
+        if (boxes[i].containsPoint(lookAheadPos)) {
+          willCollide = true;
+          break;
+        }
+      }
+      
+      if (willCollide) {
+        // Bounce / choose new direction
+        this.direction.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+        this.changeDirTimer = 3 + Math.random() * 4;
+      }
+    }
+    
     if (this.state === 'walk') {
       let finalSpeed = this.speed;
       if (inWater) finalSpeed *= 0.45; // Swim slower
       this.body.velocity.x = this.direction.x * finalSpeed;
       this.body.velocity.z = this.direction.z * finalSpeed;
       this.mesh.rotation.y = Math.atan2(this.direction.x, this.direction.z);
+      
+      // Stuck detection (if moving very slowly but state is walk, steer away)
+      const horizontalVel = new THREE.Vector2(this.body.velocity.x, this.body.velocity.z).length();
+      if (horizontalVel < 0.25 && this.changeDirTimer < 5.0) {
+        this.direction.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+        this.changeDirTimer = 3 + Math.random() * 4;
+      }
     } else {
       // Dampen horizontal velocity when idle. Very low damp (0.1) stops the NPC instantly.
       let damp = inWater ? 0.82 : 0.1;

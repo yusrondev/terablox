@@ -1175,3 +1175,53 @@ body {
 .catalog-item:hover .edit-custom-btn {
   display: block !important;
 }
+
+/* Sidebar Map Item */
+.sidebar-map-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  transition: all 0.2s ease;
+}
+.sidebar-map-item:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+.sidebar-map-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  flex: 1;
+}
+.sidebar-map-item-title {
+  font-weight: bold;
+  color: #e2e8f0;
+}
+.sidebar-map-item-actions {
+  display: flex;
+  gap: 4px;
+}
+.sidebar-map-item-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 10px;
+  border-radius: 4px;
+  color: #a1b0be;
+  transition: all 0.2s;
+}
+.sidebar-map-item-btn.btn-load:hover {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+.sidebar-map-item-btn.btn-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}

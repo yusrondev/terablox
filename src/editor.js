@@ -103,10 +103,42 @@ export class EditorManager {
       mobileControls.style.display = 'block';
     }
     
-    // Reset player position to where editor target is
+    // Hide editor spawn point markers during play preview
+    if (this.mapEditor && this.mapEditor.placedObjects) {
+      this.mapEditor.placedObjects.forEach(obj => {
+        if (obj.type === 'spawn_point' || obj.type === 'spawn_npc') {
+          obj.mesh.visible = false;
+        }
+      });
+    }
+    
+    // Configure NPC spawning for play preview
+    if (this.game.npcManager) {
+      const roamingCount = this.mapEditor.npcCount !== undefined ? this.mapEditor.npcCount : 20;
+      const fixedSpawns = [];
+      if (this.mapEditor && this.mapEditor.placedObjects) {
+        this.mapEditor.placedObjects.forEach(obj => {
+          if (obj.type === 'spawn_npc') {
+            fixedSpawns.push(obj.position);
+          }
+        });
+      }
+      this.game.npcManager.spawnNPCs(roamingCount, fixedSpawns);
+    }
+    
+    // Reset player position to spawn point (if available) or editor target
     if (this.game.player && this.game.player.body) {
-      const targetPos = this.game.cameraManager._target;
-      this.game.player.body.position.set(targetPos.x, Math.max(3, targetPos.y + 2), targetPos.z);
+      let spawnObj = null;
+      if (this.mapEditor && this.mapEditor.placedObjects) {
+        spawnObj = this.mapEditor.placedObjects.find(obj => obj.type === 'spawn_point');
+      }
+      
+      if (spawnObj) {
+        this.game.player.body.position.set(spawnObj.position.x, spawnObj.position.y + 1, spawnObj.position.z);
+      } else {
+        const targetPos = this.game.cameraManager._target;
+        this.game.player.body.position.set(targetPos.x, Math.max(3, targetPos.y + 2), targetPos.z);
+      }
       this.game.player.body.velocity.set(0, 0, 0);
       this.game.player.body.angularVelocity.set(0, 0, 0);
     }
@@ -129,9 +161,13 @@ export class EditorManager {
       this.game.player.body.angularVelocity.set(0, 0, 0);
     }
     
-    // Reset all dynamic placed vehicles/objects to initial position & zero velocity
+    // Reset all dynamic placed vehicles/objects and restore spawn markers visibility
     if (this.mapEditor && this.mapEditor.placedObjects) {
       this.mapEditor.placedObjects.forEach(obj => {
+        if (obj.type === 'spawn_point' || obj.type === 'spawn_npc') {
+          obj.mesh.visible = true;
+        }
+        
         if (obj.body && obj.body.mass > 0) {
           obj.body.position.copy(obj.position);
           obj.body.velocity.set(0, 0, 0);
