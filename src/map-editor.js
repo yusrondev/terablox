@@ -806,9 +806,8 @@ export class MapEditor {
   onMouseClick(e) {
     if (!this.active || !this.ghostMesh) return;
     
-    // Ignore clicks on UI (now moved to the left side)
-    if (e.clientX < 340 && e.clientY > 60) return;
-    if (e.clientY < 60) return; // Top HUD clicks
+    // Ignore clicks on HTML UI elements (Sidebar, HUD, etc)
+    if (e.target && e.target.tagName !== 'CANVAS') return;
     
     // Detect if mouse was dragged to rotate or pan camera. If so, ignore click to prevent spawning.
     const dx = e.clientX - this.dragStartPos.x;
@@ -851,9 +850,10 @@ export class MapEditor {
     
     // Check if tile/position is already occupied (only if snap to grid is active)
     if (this.snapEnabled) {
-      const occupied = this.placedObjects.some(obj => 
-        obj.position.distanceTo(this.ghostMesh.position) < 0.5 && obj.type === type
-      );
+      const occupied = this.placedObjects.some(obj => {
+        const objPos = (obj.position && obj.position.isVector3) ? obj.position : new THREE.Vector3(obj.position.x, obj.position.y, obj.position.z);
+        return objPos.distanceTo(this.ghostMesh.position) < 0.5 && obj.type === type;
+      });
       if (occupied) return;
     }
     
@@ -1307,6 +1307,7 @@ export class MapEditor {
         physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2)), new CANNON.Vec3(0, h/2, 0));
         
       } else if (type === 'ruko') {
+        alert("DEBUG: Memulai pembuatan ruko! Jika ruko tidak muncul, cek error di Console (F12).");
         const w = 7;
         const d = 8;
         const h = 8;

@@ -40,13 +40,29 @@
       </div>
       
       <!-- GTA V Minimap Overlay -->
-      <div id="minimap-hud" style="display: none;">
+      <div id="minimap-hud" style="display: none; cursor: pointer; pointer-events: auto;">
         <div class="minimap-border">
           <div class="minimap-player-marker"></div>
         </div>
         <div class="minimap-stats">
           <div class="minimap-bar health-bar"><div class="fill"></div></div>
           <div class="minimap-bar armor-bar"><div class="fill"></div></div>
+        </div>
+      </div>
+
+      <!-- Fullscreen Map Overlay -->
+      <div id="fullscreen-map-overlay">
+        <div class="fullscreen-map-container">
+          <div class="fullscreen-map-header">
+            <h3>WORLD MAP</h3>
+            <button class="fullscreen-map-close-btn">&times;</button>
+          </div>
+          <div class="fullscreen-map-body" id="fullscreen-map-canvas-container">
+            <div class="fullscreen-map-player-marker" id="fullscreen-map-player-marker"></div>
+          </div>
+          <div class="fullscreen-map-footer">
+            <span class="instruction">DRAG TO PAN | SCROLL TO ZOOM</span>
+          </div>
         </div>
       </div>
       

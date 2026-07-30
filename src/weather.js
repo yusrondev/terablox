@@ -26,21 +26,21 @@ export class WeatherManager {
         sunOffset: new THREE.Vector3(-55, 20, -10)
       },
       hujan: {
-        skyColor: new THREE.Color(0x323e4a),
-        fogColor: new THREE.Color(0x323e4a),
-        fogNear: 15,
-        fogFar: 60,
-        ambientColor: new THREE.Color(0x3a4858),
-        ambientIntensity: 0.45,
-        sunColor: new THREE.Color(0x607080),
-        sunIntensity: 0.4,
-        sunScale: 0.8,
-        sunVisible: false,
+        skyColor: new THREE.Color(0x8ca0b0),
+        fogColor: new THREE.Color(0x8ca0b0),
+        fogNear: 25,
+        fogFar: 75,
+        ambientColor: new THREE.Color(0x99aab8),
+        ambientIntensity: 0.65,
+        sunColor: new THREE.Color(0xb0c0cf),
+        sunIntensity: 0.7,
+        sunScale: 1.0,
+        sunVisible: true,
         starOpacity: 0.0,
         rainActive: true,
-        streetLightIntensity: 0.85,
-        cloudColor: new THREE.Color(0x4b5563),
-        cloudOpacity: 0.95,
+        streetLightIntensity: 0.0,
+        cloudColor: new THREE.Color(0xaec2d4),
+        cloudOpacity: 0.85,
         sunOffset: new THREE.Vector3(-55, 20, -10)
       },
       cerah: {
@@ -142,7 +142,7 @@ export class WeatherManager {
     this.rainMesh = new THREE.Points(geometry, material);
     this.sceneManager.scene.add(this.rainMesh);
   }
-  
+
   createStarSystem() {
     this.starCount = 1000;
     const geometry = new THREE.BufferGeometry();
@@ -359,6 +359,7 @@ export class WeatherManager {
       }
       this.rainMesh.geometry.attributes.position.needsUpdate = true;
     }
+
 
     // 6. Update Wet Road & Sidewalk effects (Dampen/Darken color instead of shiny reflections)
     if (this.sceneManager.roadMaterial) {

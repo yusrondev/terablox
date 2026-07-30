@@ -40,6 +40,17 @@ export class SceneManager {
     // IMPORTANT: InstancedMesh requires its own material compilation instance!
     this.flatMinimapRoadMatInstanced = new THREE.MeshBasicMaterial({ color: 0x6e7a89, side: THREE.DoubleSide });
     
+    // Fullscreen Map view state
+    this.isFullscreenMapOpen = false;
+    this.fullscreenMapZoom = 1.0;
+    this.fullscreenMapOffset = new THREE.Vector2(0, 0); // world coordinates offset from player
+    this.fullscreenMapCamera = null;
+    
+    // Defer initialization slightly to ensure DOM is fully ready
+    setTimeout(() => {
+      this.initFullscreenMapEvents();
+    }, 100);
+    
     window.addEventListener('resize', this.onWindowResize.bind(this));
 
     // Graphics Settings Auto Detection / Load
@@ -497,6 +508,19 @@ export class SceneManager {
       if (isGameplay) {
         this.renderMinimap(playerPos);
       }
+      
+      // 3. Draw Fullscreen Map if active
+      if (this.isFullscreenMapOpen) {
+        const container = document.getElementById('fullscreen-map-canvas-container');
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const width = rect.width;
+          const height = rect.height;
+          const x = rect.left;
+          const y = window.innerHeight - rect.bottom;
+          this.renderFullscreenMap(x, y, width, height);
+        }
+      }
     }
   }
 
@@ -613,6 +637,269 @@ export class SceneManager {
     this.renderer.render(this.scene, this.minimapCamera);
     
     // Restore states, visibilities, and materials for main loop
+    hiddenObjects.forEach(obj => { obj.visible = true; });
+    restoredMaterials.forEach((mat, obj) => { obj.material = mat; });
+    
+    this.renderer.shadowMap.enabled = origShadows;
+    this.scene.fog = oldFog;
+    this.scene.background = oldBackground;
+    this.renderer.setScissorTest(false);
+  }
+
+  initFullscreenMapEvents() {
+    const minimapHud = document.getElementById('minimap-hud');
+    const overlay = document.getElementById('fullscreen-map-overlay');
+    const closeBtn = document.querySelector('.fullscreen-map-close-btn');
+    const mapBody = document.getElementById('fullscreen-map-canvas-container');
+    
+    if (minimapHud) {
+      minimapHud.addEventListener('click', (e) => {
+        // Prevent click if we are clicking child stats bars
+        if (e.target.closest('.minimap-stats')) return;
+        
+        this.isFullscreenMapOpen = true;
+        this.fullscreenMapZoom = 1.0;
+        this.fullscreenMapOffset.set(0, 0);
+        if (overlay) {
+          overlay.classList.add('active');
+          overlay.style.display = 'flex';
+        }
+      });
+    }
+    
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        this.isFullscreenMapOpen = false;
+        if (overlay) {
+          overlay.classList.remove('active');
+          setTimeout(() => {
+            if (!this.isFullscreenMapOpen) {
+              overlay.style.display = 'none';
+            }
+          }, 300);
+        }
+      });
+    }
+    
+    // Zoom interaction anywhere on the overlay screen
+    if (overlay) {
+      overlay.addEventListener('wheel', (e) => {
+        if (!this.isFullscreenMapOpen) return;
+        e.preventDefault();
+        
+        const zoomSpeed = 0.15;
+        if (e.deltaY > 0) { // Reversed: scroll down zooms in
+          this.fullscreenMapZoom = Math.min(this.fullscreenMapZoom + zoomSpeed * this.fullscreenMapZoom, 6.0);
+        } else { // Scroll up zooms out
+          this.fullscreenMapZoom = Math.max(this.fullscreenMapZoom - zoomSpeed * this.fullscreenMapZoom, 0.35);
+        }
+      }, { passive: false });
+      
+      // Pan interaction (Mouse)
+      let isDragging = false;
+      let prevMousePos = new THREE.Vector2();
+      
+      mapBody.addEventListener('mousedown', (e) => {
+        if (!this.isFullscreenMapOpen) return;
+        isDragging = true;
+        prevMousePos.set(e.clientX, e.clientY);
+      });
+      
+      window.addEventListener('mousemove', (e) => {
+        if (!this.isFullscreenMapOpen || !isDragging) return;
+        
+        const dx = e.clientX - prevMousePos.x;
+        const dy = e.clientY - prevMousePos.y;
+        prevMousePos.set(e.clientX, e.clientY);
+        
+        const size = 120;
+        const rect = mapBody.getBoundingClientRect();
+        const aspect = rect.width / rect.height;
+        
+        const worldWidth = size * aspect * 2 / this.fullscreenMapZoom;
+        const worldHeight = size * 2 / this.fullscreenMapZoom;
+        
+        const worldDx = dx * (worldWidth / rect.width);
+        const worldDy = dy * (worldHeight / rect.height);
+        
+        // Reversed pan direction (X reversed back, Y remains reversed)
+        this.fullscreenMapOffset.x -= worldDx;
+        this.fullscreenMapOffset.y -= worldDy;
+      });
+      
+      // Pan & Pinch Zoom interaction (Touch)
+      let isPinching = false;
+      let initialPinchDist = 0;
+      let initialPinchZoom = 1.0;
+      
+      mapBody.addEventListener('touchstart', (e) => {
+        if (!this.isFullscreenMapOpen) return;
+        
+        if (e.touches.length === 2) {
+          isPinching = true;
+          isDragging = false;
+          initialPinchDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          initialPinchZoom = this.fullscreenMapZoom;
+        } else if (e.touches.length === 1) {
+          isPinching = false;
+          isDragging = true;
+          prevMousePos.set(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      });
+      
+      mapBody.addEventListener('touchmove', (e) => {
+        if (!this.isFullscreenMapOpen) return;
+        
+        if (e.touches.length === 2 && isPinching) {
+          e.preventDefault();
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          if (initialPinchDist > 0) {
+            const ratio = dist / initialPinchDist;
+            this.fullscreenMapZoom = Math.min(Math.max(initialPinchZoom * ratio, 0.35), 6.0);
+          }
+        } else if (e.touches.length === 1 && isDragging && !isPinching) {
+          const dx = e.touches[0].clientX - prevMousePos.x;
+          const dy = e.touches[0].clientY - prevMousePos.y;
+          prevMousePos.set(e.touches[0].clientX, e.touches[0].clientY);
+          
+          const size = 120;
+          const rect = mapBody.getBoundingClientRect();
+          const aspect = rect.width / rect.height;
+          
+          const worldWidth = size * aspect * 2 / this.fullscreenMapZoom;
+          const worldHeight = size * 2 / this.fullscreenMapZoom;
+          
+          const worldDx = dx * (worldWidth / rect.width);
+          const worldDy = dy * (worldHeight / rect.height);
+          
+          // Reversed pan direction (X reversed back, Y remains reversed)
+          this.fullscreenMapOffset.x -= worldDx;
+          this.fullscreenMapOffset.y -= worldDy;
+        }
+      });
+      
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+      
+      mapBody.addEventListener('touchend', (e) => {
+        isDragging = false;
+        isPinching = false;
+        initialPinchDist = 0;
+      });
+    }
+  }
+
+  renderFullscreenMap(x, y, width, height) {
+    if (!this.camera || !this.camera.camera) return;
+    const playerPos = (this.camera._target) ? this.camera._target : new THREE.Vector3();
+    
+    if (!this.fullscreenMapCamera) {
+      const aspect = width / height;
+      const size = 120;
+      this.fullscreenMapCamera = new THREE.OrthographicCamera(-size * aspect, size * aspect, size, -size, 1, 300);
+    }
+    
+    const aspect = width / height;
+    const baseSize = 120;
+    const size = baseSize / this.fullscreenMapZoom;
+    
+    this.fullscreenMapCamera.left = -size * aspect;
+    this.fullscreenMapCamera.right = size * aspect;
+    this.fullscreenMapCamera.top = size;
+    this.fullscreenMapCamera.bottom = -size;
+    this.fullscreenMapCamera.updateProjectionMatrix();
+    
+    this.fullscreenMapCamera.position.set(
+      playerPos.x + this.fullscreenMapOffset.x, 
+      100, 
+      playerPos.z + this.fullscreenMapOffset.y
+    );
+    this.fullscreenMapCamera.lookAt(
+      playerPos.x + this.fullscreenMapOffset.x, 
+      playerPos.y, 
+      playerPos.z + this.fullscreenMapOffset.y
+    );
+    
+    this.fullscreenMapCamera.up.set(0, 0, -1);
+    
+    // Update player marker relative position & rotation in DOM
+    const marker = document.getElementById('fullscreen-map-player-marker');
+    if (marker) {
+      const sizeX = size * aspect;
+      const sizeY = size;
+      const nx = -this.fullscreenMapOffset.x / sizeX;
+      const ny = -this.fullscreenMapOffset.y / sizeY;
+      
+      const leftPct = 50 + nx * 50;
+      const topPct = 50 + ny * 50;
+      
+      marker.style.left = `${leftPct}%`;
+      marker.style.top = `${topPct}%`;
+      
+      if (leftPct >= 0 && leftPct <= 100 && topPct >= 0 && topPct <= 100) {
+        marker.style.display = 'block';
+      } else {
+        marker.style.display = 'none';
+      }
+      
+      const playerNode = this.scene.getObjectByName('player');
+      if (playerNode) {
+        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(playerNode.quaternion);
+        const rotationDeg = Math.atan2(forward.x, -forward.z) * (180 / Math.PI);
+        marker.style.transform = `translate(-50%, -50%) rotate(${rotationDeg}deg)`;
+      }
+    }
+    
+    this.renderer.setViewport(x, y, width, height);
+    this.renderer.setScissor(x, y, width, height);
+    this.renderer.setScissorTest(true);
+    
+    const hiddenObjects = [];
+    const restoredMaterials = new Map();
+    
+    this.scene.traverse(child => {
+      if (child.isMesh || child.isInstancedMesh || child.isPoints) {
+        const isRoad = (child.name === 'road_default' || 
+                        child.name === 'road_custom' ||
+                        child.name === 'roadIM' ||
+                        (child.isInstancedMesh && child.geometry && (child.geometry.type === 'PlaneGeometry' || child.geometry.constructor.name === 'PlaneGeometry')) ||
+                        (this.roadMaterial && child.material === this.roadMaterial) ||
+                        (this.roadMaterial && child.material && child.material.uuid === this.roadMaterial.uuid));
+        const isGround = (child.name === 'ground_default' || 
+                          (child.geometry && child.geometry.type === 'PlaneGeometry' && !isRoad && child.name !== 'player'));
+        
+        if (isRoad) {
+          restoredMaterials.set(child, child.material);
+          child.material = child.isInstancedMesh ? this.flatMinimapRoadMatInstanced : this.flatMinimapRoadMat;
+        } else if (isGround) {
+          restoredMaterials.set(child, child.material);
+          child.material = this.flatMinimapGroundMat;
+        } else {
+          if (child.visible) {
+            child.visible = false;
+            hiddenObjects.push(child);
+          }
+        }
+      }
+    });
+    
+    const oldFog = this.scene.fog;
+    this.scene.fog = null;
+    const oldBackground = this.scene.background;
+    this.scene.background = new THREE.Color(0x181c22);
+    const origShadows = this.renderer.shadowMap.enabled;
+    this.renderer.shadowMap.enabled = false;
+    
+    this.renderer.clearDepth();
+    this.renderer.render(this.scene, this.fullscreenMapCamera);
+    
     hiddenObjects.forEach(obj => { obj.visible = true; });
     restoredMaterials.forEach((mat, obj) => { obj.material = mat; });
     
