@@ -99,7 +99,7 @@ export class MapEditor {
             }
           } else {
             if (this.tileColorPickerGroup) this.tileColorPickerGroup.style.display = 'none';
-            if (!(this.subMode === 'city' && ['terrain_block', 'water', 'road_ramp'].includes(this.selectedBrush))) {
+            if (!(this.subMode === 'city' && ['terrain_block', 'water', 'road_ramp', 'terrain_ramp'].includes(this.selectedBrush))) {
               if (this.tileScaleControlGroup) this.tileScaleControlGroup.style.display = 'none';
             }
           }
@@ -114,7 +114,7 @@ export class MapEditor {
       const updateTileDimensions = (e, lbl) => {
         if (lbl) lbl.textContent = e.target.value;
         const activeBrush = (this.subMode === 'props' ? this.selectedProp : this.selectedBrush);
-        if (this.active && ['tile', 'terrain_block', 'water', 'road_ramp'].includes(activeBrush)) {
+        if (this.active && ['tile', 'terrain_block', 'water', 'road_ramp', 'terrain_ramp'].includes(activeBrush)) {
           this.createGhost(activeBrush);
         }
       };
@@ -142,7 +142,7 @@ export class MapEditor {
             this.heightControlGroup.style.display = 'none';
           }
           
-          if (['terrain_block', 'water', 'road_ramp'].includes(this.selectedBrush)) {
+          if (['terrain_block', 'water', 'road_ramp', 'terrain_ramp'].includes(this.selectedBrush)) {
             if (this.tileScaleControlGroup) {
               this.tileScaleControlGroup.style.display = 'block';
               this.adjustScaleSliders(this.selectedBrush);
@@ -670,7 +670,7 @@ export class MapEditor {
       wMesh.name = 'water_tile';
       g.add(wMesh);
       mesh = g;
-    } else if (type === 'road_ramp') {
+    } else if (type === 'road_ramp' || type === 'terrain_ramp') {
       const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 10;
       const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 10;
       const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 2.0;
@@ -765,7 +765,7 @@ export class MapEditor {
     let targetY = 0;
     
     // Collect all ground-like meshes to intersect
-    const groundTypes = ['tile', 'road', 'road_roundabout', 'road_ramp', 'water', 'terrain_block'];
+    const groundTypes = ['tile', 'road', 'road_roundabout', 'road_ramp', 'terrain_ramp', 'water', 'terrain_block'];
     const groundMeshes = [];
     
     this.placedObjects.forEach(obj => {
@@ -1231,7 +1231,48 @@ export class MapEditor {
       
       physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
       physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(tw / 2, 0.1, slopeLength / 2)), new CANNON.Vec3(0, th / 2, 0));
-    } 
+    }
+    else if (type === 'terrain_ramp') {
+      const tw = this.rangeTileW ? parseFloat(this.rangeTileW.value) : 10;
+      const td = this.rangeTileD ? parseFloat(this.rangeTileD.value) : 10;
+      const th = this.rangeTileH ? parseFloat(this.rangeTileH.value) : 2.0;
+      
+      const g = new THREE.Group();
+      const theta = Math.atan2(th, td);
+      const slopeLength = Math.sqrt(td * td + th * th);
+      
+      // Lapisan rumput di atas (sedikit diperkecil ketebalannya)
+      const grassMat = new THREE.MeshLambertMaterial({ color: 0x7fc97f });
+      const surface = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.1, slopeLength), grassMat);
+      surface.rotation.x = -theta;
+      surface.position.set(0, th / 2, 0);
+      
+      // Tanah padat di bawah (berbentuk prisma segitiga/wedge)
+      const dTW = tw - 0.1;
+      const dTD = td - 0.1;
+      const dTH = th - 0.05; // Mengisi ruang tepat di bawah rumput
+      
+      const shape = new THREE.Shape();
+      shape.moveTo(-dTD/2, 0);
+      shape.lineTo(dTD/2, 0);
+      shape.lineTo(dTD/2, dTH);
+      shape.lineTo(-dTD/2, 0);
+      
+      const extrudeSettings = { depth: dTW, bevelEnabled: false };
+      const wedgeGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      
+      const dirtMat = new THREE.MeshLambertMaterial({ color: 0x8d6e63 });
+      const dirtMesh = new THREE.Mesh(wedgeGeo, dirtMat);
+      dirtMesh.rotation.y = -Math.PI / 2;
+      dirtMesh.position.x = dTW / 2;
+      
+      g.add(surface, dirtMesh);
+      visualMesh = g;
+      visualMesh.userData = { tileW: tw, tileD: td, tileH: th };
+      
+      physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
+      physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(tw / 2, 0.1, slopeLength / 2)), new CANNON.Vec3(0, th / 2, 0));
+    }
     else if (type === 'building' || type === 'rumah' || type === 'ruko') {
       const g = new THREE.Group();
       const bColorStr = this.inputBldColor ? this.inputBldColor.value : '#ffb7b2';
@@ -1301,13 +1342,17 @@ export class MapEditor {
         const win1 = new THREE.Mesh(winGeo, winMat); win1.position.set(-1.8, 2, d/2 + 0.05);
         const win2 = new THREE.Mesh(winGeo, winMat); win2.position.set(1.8, 2, d/2 + 0.05);
         
-        g.add(base, roof, door, win1, win2);
+        // Jendela belakang rumah
+        const win3 = new THREE.Mesh(winGeo, winMat); win3.position.set(-1.5, 2, -d/2 - 0.05);
+        const win4 = new THREE.Mesh(winGeo, winMat); win4.position.set(1.5, 2, -d/2 - 0.05);
+        
+        g.add(base, roof, door, win1, win2, win3, win4);
         
         physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
         physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2)), new CANNON.Vec3(0, h/2, 0));
         
       } else if (type === 'ruko') {
-        alert("DEBUG: Memulai pembuatan ruko! Jika ruko tidak muncul, cek error di Console (F12).");
+        console.log("DEBUG: Memulai pembuatan ruko!");
         const w = 7;
         const d = 8;
         const h = 8;
@@ -1332,7 +1377,12 @@ export class MapEditor {
         const win2a = new THREE.Mesh(win2Geo, winMat); win2a.position.set(-1.5, 6, d/2 + 0.05);
         const win2b = new THREE.Mesh(win2Geo, winMat); win2b.position.set(1.5, 6, d/2 + 0.05);
         
-        g.add(base, awning, glass, win2a, win2b);
+        // Jendela belakang ruko
+        const winB1 = new THREE.Mesh(win2Geo, winMat); winB1.position.set(-1.5, 6, -d/2 - 0.05);
+        const winB2 = new THREE.Mesh(win2Geo, winMat); winB2.position.set(1.5, 6, -d/2 - 0.05);
+        const winB3 = new THREE.Mesh(glassGeo, winMat); winB3.position.set(0, 2.5, -d/2 - 0.05);
+        
+        g.add(base, awning, glass, win2a, win2b, winB1, winB2, winB3);
         
         physicsBody = new CANNON.Body({ mass: 0, material: this.game.physicsManager.defaultMaterial });
         physicsBody.addShape(new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2)), new CANNON.Vec3(0, h/2, 0));
@@ -1379,7 +1429,7 @@ export class MapEditor {
       else if (type === 'tycoon_button') py += 0.05;
       
       physicsBody.position.set(visualMesh.position.x, py, visualMesh.position.z);
-      if (type === 'road_ramp') {
+      if (type === 'road_ramp' || type === 'terrain_ramp') {
         const td = visualMesh.userData.tileD;
         const th = visualMesh.userData.tileH;
         const qYaw = new CANNON.Quaternion();
@@ -1437,7 +1487,7 @@ export class MapEditor {
       rotation: this.rotationAngle,
       height: (type === 'building') ? parseFloat(this.rangeHeight.value) : null,
       color: (type === 'tile') ? this.selectedTileColor : (['building', 'rumah', 'ruko'].includes(type) ? visualMesh.userData.customColor : null),
-      tileScale: ['tile', 'terrain_block', 'water', 'road_ramp'].includes(type) ? { w: visualMesh.userData.tileW, d: visualMesh.userData.tileD, h: visualMesh.userData.tileH } : null
+      tileScale: ['tile', 'terrain_block', 'water', 'road_ramp', 'terrain_ramp'].includes(type) ? { w: visualMesh.userData.tileW, d: visualMesh.userData.tileD, h: visualMesh.userData.tileH } : null
     };
     
     this.placedObjects.push(placedObj);
@@ -1447,6 +1497,8 @@ export class MapEditor {
       action: 'place',
       object: placedObj
     });
+    
+    console.log("DEBUG: Object successfully placed:", placedObj, "Mesh:", visualMesh, "Visible:", visualMesh.visible, "Position:", visualMesh.position);
 
     this.rebuildCameraBuildingBoxes();
   }
@@ -1775,7 +1827,7 @@ export class MapEditor {
       if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
         this.inputBldColor.value = data.color;
       }
-      if (['tile', 'terrain_block', 'water', 'road_ramp'].includes(data.type)) {
+      if (['tile', 'terrain_block', 'water', 'road_ramp', 'terrain_ramp'].includes(data.type)) {
         if (data.type === 'tile' && data.color) this.selectedTileColor = data.color;
         if (data.tileScale) {
           if (this.rangeTileW) { this.rangeTileW.value = data.tileScale.w; this.lblTileW.textContent = data.tileScale.w; }
@@ -2038,7 +2090,7 @@ export class MapEditor {
       if (['building', 'rumah', 'ruko'].includes(data.type) && data.color && this.inputBldColor) {
         this.inputBldColor.value = data.color;
       }
-      if (['tile', 'terrain_block', 'water', 'road_ramp'].includes(data.type)) {
+      if (['tile', 'terrain_block', 'water', 'road_ramp', 'terrain_ramp'].includes(data.type)) {
         if (data.type === 'tile' && data.color) this.selectedTileColor = data.color;
         if (data.tileScale) {
           if (this.rangeTileW) { this.rangeTileW.value = data.tileScale.w; this.lblTileW.textContent = data.tileScale.w; }

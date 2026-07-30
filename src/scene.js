@@ -423,7 +423,7 @@ export class SceneManager {
         
         // C. Occlusion Culling (only for props/smaller elements, not roads/ground/large buildings/water to avoid popping)
         const isCullableProp = visible && ![
-          'road', 'road_roundabout', 'road_ramp', 'terrain_block', 'water', 'building'
+          'road', 'road_roundabout', 'road_ramp', 'terrain_block', 'water', 'building', 'rumah', 'ruko'
         ].includes(obj.type) && !obj.type.startsWith('custom_');
         
         if (isCullableProp && this.buildingBoxes && this.buildingBoxes.length > 0) {
