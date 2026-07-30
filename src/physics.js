@@ -20,8 +20,8 @@ export class PhysicsManager {
     this.world.addContactMaterial(defaultContactMaterial);
     this.world.defaultContactMaterial = defaultContactMaterial;
     
-    // Naive Broadphase is rock-solid and stable for city environments
-    this.world.broadphase = new CANNON.NaiveBroadphase();
+    // SAPBroadphase is much faster than NaiveBroadphase for city environments
+    this.world.broadphase = new CANNON.SAPBroadphase(this.world);
   }
   
   addBody(body) {

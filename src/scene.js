@@ -34,6 +34,10 @@ export class SceneManager {
     // Environment & Weather System
     this.weatherManager = new WeatherManager(this);
     
+    // Flat unlit materials for GTA V style minimap (immune to night & weather)
+    this.flatMinimapGroundMat = new THREE.MeshBasicMaterial({ color: 0x181c22 });
+    this.flatMinimapRoadMat   = new THREE.MeshBasicMaterial({ color: 0x6e7a89 });
+    
     window.addEventListener('resize', this.onWindowResize.bind(this));
 
     // Graphics Settings Auto Detection / Load
@@ -280,24 +284,20 @@ export class SceneManager {
     this.graphicsLevel = level;
     localStorage.setItem('graphicsLevel', level);
     
-    const hasShadows = (level !== 'low');
+    const hasShadows = (level === 'high');
     
     // 1. Toggle shadows on renderer
     this.renderer.shadowMap.enabled = hasShadows;
     
-    // 2. Set shadow map type (Soft shadows only on high)
-    if (level === 'high') {
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    } else {
-      this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    }
+    // 2. Set shadow map type
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
     // 3. Configure directional light shadows
     if (this.directionalLight) {
       this.directionalLight.castShadow = hasShadows;
       
       if (hasShadows) {
-        const shadowSize = (level === 'high') ? 2048 : 512;
+        const shadowSize = 1024; // Optimized from 2048 to prevent GPU lag
         if (this.directionalLight.shadow.mapSize.width !== shadowSize) {
           this.directionalLight.shadow.mapSize.width = shadowSize;
           this.directionalLight.shadow.mapSize.height = shadowSize;
@@ -314,11 +314,11 @@ export class SceneManager {
     // 4. Set resolution scale (DPR)
     let pixelRatioLimit = 1.0;
     if (level === 'low') {
-      pixelRatioLimit = 0.8;
+      pixelRatioLimit = 0.7;
     } else if (level === 'med') {
-      pixelRatioLimit = 1.15;
+      pixelRatioLimit = 1.0;
     } else {
-      pixelRatioLimit = 2.0;
+      pixelRatioLimit = 1.35; // Optimized from 2.0 to avoid mobile GPU overhead
     }
     const targetPixelRatio = Math.min(window.devicePixelRatio, pixelRatioLimit);
     this.renderer.setPixelRatio(targetPixelRatio);
@@ -329,8 +329,13 @@ export class SceneManager {
     // 6. Traverse and apply shadow states to all meshes
     this.scene.traverse(node => {
       if (node.isMesh || node.isInstancedMesh) {
-        node.castShadow = hasShadows;
-        node.receiveShadow = hasShadows;
+        if (node.name === 'light_cone') {
+          node.castShadow = false;
+          node.receiveShadow = false;
+        } else {
+          node.castShadow = hasShadows;
+          node.receiveShadow = hasShadows;
+        }
         if (node.material) {
           node.material.needsUpdate = true;
         }
@@ -477,7 +482,110 @@ export class SceneManager {
     if (this.camera && this.camera.camera) {
       const playerPos = (this.camera._target) ? this.camera._target : new THREE.Vector3();
       this.performOcclusionCulling(this.camera, playerPos, activeTab);
+      
+      // 1. Reset viewport for main scene render
+      this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+      this.renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
+      this.renderer.setScissorTest(false);
+      
       this.renderer.render(this.scene, this.camera.camera);
+      
+      // 2. Draw 100% accurate minimap during gameplay
+      const isGameplay = activeTab === 'play' || !activeTab;
+      if (isGameplay) {
+        this.renderMinimap(playerPos);
+      }
     }
+  }
+
+  renderMinimap(playerPos) {
+    if (!this.minimapCamera) {
+      const aspect = 160 / 110; // GTA V aspect ratio (1.45)
+      const size = 20; // Frustum size in meters
+      this.minimapCamera = new THREE.OrthographicCamera(-size * aspect, size * aspect, size, -size, 1, 300);
+    }
+    
+    // Position minimap camera directly 100m above player
+    this.minimapCamera.position.set(playerPos.x, 100, playerPos.z);
+    this.minimapCamera.lookAt(playerPos.x, playerPos.y, playerPos.z);
+    
+    // Smoothly lerp camera heading to avoid jerky rotations
+    const playerNode = this.scene.getObjectByName('player');
+    if (playerNode) {
+      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(playerNode.quaternion);
+      if (!this.smoothMinimapUp) {
+        this.smoothMinimapUp = forward.clone();
+      } else {
+        this.smoothMinimapUp.lerp(forward, 0.08); // Damped smooth rotation
+      }
+      this.minimapCamera.up.set(this.smoothMinimapUp.x, 0, this.smoothMinimapUp.z).normalize();
+    } else {
+      this.minimapCamera.up.set(0, 0, -1);
+    }
+    
+    // Exact WebGL Viewport Box matching #minimap-hud .minimap-border
+    const width = 160;
+    const height = 110;
+    const x = 24; // 20px left margin + 4px border
+    const y = window.innerHeight - height - 44; // 40px top margin + 4px border
+    
+    this.renderer.setViewport(x, y, width, height);
+    this.renderer.setScissor(x, y, width, height);
+    this.renderer.setScissorTest(true);
+    
+    // Collect road meshes from custom placedObjects if any
+    const customRoadMeshes = new Set();
+    if (this.placedObjects) {
+      this.placedObjects.forEach(obj => {
+        if (obj.type === 'road' || obj.type === 'road_roundabout') {
+          if (obj.mesh) {
+            obj.mesh.traverse(m => { if (m.isMesh) customRoadMeshes.add(m); });
+          }
+        }
+      });
+    }
+    
+    // Prepare scene: hide buildings/benches/trees/NPCs and swap road/ground materials to flat unlit colors
+    const hiddenObjects = [];
+    const restoredMaterials = new Map();
+    
+    this.scene.traverse(child => {
+      if (child.isMesh || child.isInstancedMesh) {
+        // Detect default instanced roads or custom placed roads by name
+        const isRoad = (child.name === 'road_default' || child.name === 'road_custom');
+        const isGround = (child.name === 'ground_default');
+        
+        if (isRoad) {
+          restoredMaterials.set(child, child.material);
+          child.material = this.flatMinimapRoadMat;
+        } else if (isGround) {
+          restoredMaterials.set(child, child.material);
+          child.material = this.flatMinimapGroundMat;
+        } else {
+          // Hide buildings, trees, benches, street lights, NPCs, player mesh, sun, moon, etc.
+          if (child.visible) {
+            child.visible = false;
+            hiddenObjects.push(child);
+          }
+        }
+      }
+    });
+    
+    const oldFog = this.scene.fog;
+    this.scene.fog = null;
+    
+    const origShadows = this.renderer.shadowMap.enabled;
+    this.renderer.shadowMap.enabled = false;
+    
+    this.renderer.clearDepth();
+    this.renderer.render(this.scene, this.minimapCamera);
+    
+    // Restore states, visibilities, and materials for main loop
+    hiddenObjects.forEach(obj => { obj.visible = true; });
+    restoredMaterials.forEach((mat, obj) => { obj.material = mat; });
+    
+    this.renderer.shadowMap.enabled = origShadows;
+    this.scene.fog = oldFog;
+    this.renderer.setScissorTest(false);
   }
 }

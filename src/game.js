@@ -161,11 +161,12 @@ export class Game {
       }
     }
     
+    const activeTab = (this.editorManager && this.editorManager.activeMode === 'editor') ? this.editorManager.activeTab : 'play';
+    
     // 5. UI
-    this.uiManager.update();
+    this.uiManager.update(activeTab);
     
     // 6. Render
-    const activeTab = this.editorManager ? this.editorManager.activeTab : 'play';
     this.sceneManager.render(activeTab);
     
     requestAnimationFrame(this.loop);

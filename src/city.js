@@ -39,6 +39,7 @@ export class CityGenerator {
       new THREE.PlaneGeometry(totalSize, totalSize),
       new THREE.MeshLambertMaterial({ color: this.colors.grass })
     );
+    this.groundMesh.name = 'ground_default';
     this.groundMesh.rotation.x = -Math.PI / 2;
     this.groundMesh.receiveShadow = true;
     this.sceneManager.scene.add(this.groundMesh);
@@ -103,6 +104,7 @@ export class CityGenerator {
     this.sceneManager.sidewalkMaterial = sidewalkMat;
 
     const roadIM     = new THREE.InstancedMesh(roadGeo, roadMat, totalBlocks);
+    roadIM.name = 'road_default';
     const sidewalkIM = new THREE.InstancedMesh(sidewalkGeo, sidewalkMat, totalBlocks);
     const trunkIM    = new THREE.InstancedMesh(trunkGeo,  new THREE.MeshLambertMaterial({ color: this.colors.wood }), maxTrees);
     const leavesIM   = new THREE.InstancedMesh(leavesGeo, new THREE.MeshLambertMaterial({ color: this.colors.leaves }), maxTrees);

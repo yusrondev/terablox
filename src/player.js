@@ -96,6 +96,7 @@ export class Player {
     this.head.receiveShadow = true;
     
     this.mesh.scale.set(0.5, 0.5, 0.5); // Shrink to human proportions
+    this.mesh.name = 'player';
     
     this.sceneManager.scene.add(this.mesh);
   }

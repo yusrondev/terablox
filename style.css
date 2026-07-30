@@ -35,20 +35,93 @@ body {
 
 #hud {
   position: absolute;
-  top: 20px;
+  top: 15px;
   left: 20px;
-  color: white;
-  text-shadow: 1px 1px 2px black;
-  font-weight: bold;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 1px 1px 1px black;
+  font-family: monospace;
+  z-index: 1001;
+  pointer-events: none;
 }
 
 #fps-counter {
-  font-size: 20px;
-  margin-bottom: 5px;
+  font-size: 12px;
+  font-weight: bold;
 }
 
 #coordinates {
-  font-size: 14px;
+  display: none;
+}
+
+/* GTA V Minimap HUD Overlay */
+#minimap-hud {
+  position: absolute;
+  top: 40px; /* Positioned directly below the small FPS text */
+  left: 20px;
+  width: 160px;
+  height: 125px; /* Border-box total height */
+  border: 4px solid #000000;
+  box-sizing: content-box;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.minimap-border {
+  position: relative;
+  width: 160px;
+  height: 110px;
+  overflow: hidden;
+}
+
+.minimap-player-marker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 12px solid #00e6ff; /* light blue GTA V arrow */
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.8));
+  z-index: 1002;
+}
+
+.minimap-stats {
+  display: flex;
+  width: 160px;
+  height: 15px;
+  background: #000000;
+  padding: 3px 4px;
+  gap: 4px;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.minimap-bar {
+  flex: 1;
+  height: 6px;
+  background: #2d3436;
+  border-radius: 1px;
+  overflow: hidden;
+  position: relative;
+}
+
+.minimap-bar .fill {
+  height: 100%;
+  width: 100%;
+}
+
+.health-bar .fill {
+  background: #10b981; /* Green */
+}
+
+.armor-bar .fill {
+  background: #3b82f6; /* Blue */
 }
 
 /* Mobile Controls */
@@ -469,6 +542,10 @@ body {
   display: none !important;
 }
 
+#settings-panel:not(.settings-closed) + #btn-settings-toggle {
+  display: none !important;
+}
+
 .settings-header {
   display: flex;
   justify-content: space-between;
@@ -552,6 +629,8 @@ body {
 /* Mobile Responsive */
 @media (max-width: 600px) {
   #settings-container {
+    top: auto;
+    right: auto;
     bottom: 230px;
     /* Shifted up on mobile so it doesn't overlap the joystick */
     left: 20px;

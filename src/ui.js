@@ -4,7 +4,6 @@ export class UIManager {
     this.sceneManager = sceneManager;
     
     this.fpsCounter = document.getElementById('fps-counter');
-    this.coordsDisplay = document.getElementById('coordinates');
     this.interactBtn = document.getElementById('btn-interact');
     
     this.frames = 0;
@@ -110,11 +109,20 @@ export class UIManager {
     });
   }
   
-  update() {
-    // Coordinate update
-    if (this.player && this.player.mesh) {
-      const pos = this.player.mesh.position;
-      this.coordsDisplay.innerText = `X: ${Math.floor(pos.x)}, Y: ${Math.floor(pos.y)}, Z: ${Math.floor(pos.z)}`;
+  update(activeTab) {
+    // Show minimap during gameplay
+    const isGameplay = activeTab === 'play' || !activeTab;
+    const hudEl = document.getElementById('minimap-hud');
+    if (hudEl) {
+      hudEl.style.display = isGameplay ? 'flex' : 'none';
+      
+      // Update player rotation marker (static facing up since map rotates)
+      if (isGameplay) {
+        const marker = hudEl.querySelector('.minimap-player-marker');
+        if (marker) {
+          marker.style.transform = 'translate(-50%, -50%)';
+        }
+      }
     }
     
     // FPS Calculate

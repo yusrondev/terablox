@@ -534,6 +534,7 @@ export class MapEditor {
       coneGeo.translate(0, -2.15, 0);
       const cone = new THREE.Mesh(coneGeo, wireMat);
       cone.position.set(0, 4.29, 1.11);
+      cone.name = 'light_cone';
       g.add(p, a, h, cone);
       mesh = g;
     } else if (type === 'bench') {
@@ -905,6 +906,7 @@ export class MapEditor {
       coneGeo.translate(0, -2.15, 0);
       const cone = new THREE.Mesh(coneGeo, this.game.sceneManager.streetLightConeMaterial);
       cone.position.set(0, 4.29, 1.11);
+      cone.name = 'light_cone';
       
       g.add(p, a, h, b, cone);
       visualMesh = g;
@@ -1099,7 +1101,9 @@ export class MapEditor {
       );
       m.rotation.x = -Math.PI / 2;
       m.position.y = 0.01;
+      m.name = 'road_custom';
       g.add(m);
+      g.name = 'road_custom';
       visualMesh = g;
     } 
     else if (type === 'terrain_block') {
@@ -1297,8 +1301,13 @@ export class MapEditor {
     visualMesh.receiveShadow = true;
     visualMesh.traverse(child => {
       if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
+        if (child.name === 'light_cone') {
+          child.castShadow = false;
+          child.receiveShadow = false;
+        } else {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
       }
     });
     
