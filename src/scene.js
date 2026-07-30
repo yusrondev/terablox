@@ -37,6 +37,8 @@ export class SceneManager {
     // Flat unlit materials for GTA V style minimap (immune to night & weather)
     this.flatMinimapGroundMat = new THREE.MeshBasicMaterial({ color: 0x181c22 });
     this.flatMinimapRoadMat   = new THREE.MeshBasicMaterial({ color: 0x6e7a89 });
+    // IMPORTANT: InstancedMesh requires its own material compilation instance!
+    this.flatMinimapRoadMatInstanced = new THREE.MeshBasicMaterial({ color: 0x6e7a89 });
     
     window.addEventListener('resize', this.onWindowResize.bind(this));
 
@@ -500,8 +502,8 @@ export class SceneManager {
 
   renderMinimap(playerPos) {
     if (!this.minimapCamera) {
-      const aspect = 160 / 110; // GTA V aspect ratio (1.45)
-      const size = 20; // Frustum size in meters
+      const aspect = 120 / 80; // Smaller minimap aspect ratio
+      const size = 35; // Zoomed out to 35m to show more routes
       this.minimapCamera = new THREE.OrthographicCamera(-size * aspect, size * aspect, size, -size, 1, 300);
     }
     
@@ -524,10 +526,10 @@ export class SceneManager {
     }
     
     // Exact WebGL Viewport Box matching #minimap-hud .minimap-border
-    const width = 160;
-    const height = 110;
+    const width = 120;
+    const height = 80;
     const x = 24; // 20px left margin + 4px border
-    const y = window.innerHeight - height - 44; // 40px top margin + 4px border
+    const y = window.innerHeight - height - 24; // 20px top margin + 4px border
     
     this.renderer.setViewport(x, y, width, height);
     this.renderer.setScissor(x, y, width, height);
@@ -550,19 +552,19 @@ export class SceneManager {
     const restoredMaterials = new Map();
     
     this.scene.traverse(child => {
-      if (child.isMesh || child.isInstancedMesh) {
-        // Detect default instanced roads or custom placed roads by name
+      // Include child.isPoints to catch stars and rain systems
+      if (child.isMesh || child.isInstancedMesh || child.isPoints) {
         const isRoad = (child.name === 'road_default' || child.name === 'road_custom');
         const isGround = (child.name === 'ground_default');
         
         if (isRoad) {
           restoredMaterials.set(child, child.material);
-          child.material = this.flatMinimapRoadMat;
+          child.material = child.isInstancedMesh ? this.flatMinimapRoadMatInstanced : this.flatMinimapRoadMat;
         } else if (isGround) {
           restoredMaterials.set(child, child.material);
           child.material = this.flatMinimapGroundMat;
         } else {
-          // Hide buildings, trees, benches, street lights, NPCs, player mesh, sun, moon, etc.
+          // Hide buildings, trees, benches, street lights, NPCs, player mesh, sun, moon, stars, rain, etc.
           if (child.visible) {
             child.visible = false;
             hiddenObjects.push(child);
@@ -573,6 +575,10 @@ export class SceneManager {
     
     const oldFog = this.scene.fog;
     this.scene.fog = null;
+    
+    // Force background to flat dark charcoal color, bypassing weather colors
+    const oldBackground = this.scene.background;
+    this.scene.background = new THREE.Color(0x181c22);
     
     const origShadows = this.renderer.shadowMap.enabled;
     this.renderer.shadowMap.enabled = false;
@@ -586,6 +592,7 @@ export class SceneManager {
     
     this.renderer.shadowMap.enabled = origShadows;
     this.scene.fog = oldFog;
+    this.scene.background = oldBackground;
     this.renderer.setScissorTest(false);
   }
 }
