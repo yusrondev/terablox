@@ -84,6 +84,7 @@ class NPC {
     });
     
     this.mesh.scale.set(0.5, 0.5, 0.5);
+    this.mesh.name = 'npc';
     
     this.sceneManager.scene.add(this.mesh);
   }

@@ -2031,18 +2031,18 @@ export class MapEditor {
 
   createRoadTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 256;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d');
     
     // Asphalt base
     ctx.fillStyle = '#22252a';
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, 256, 256);
     
     // Slight noise
-    for (let i = 0; i < 8000; i++) {
+    for (let i = 0; i < 1500; i++) {
         ctx.fillStyle = Math.random() > 0.5 ? '#1a1d21' : '#2a2e35';
-        ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+        ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
     }
     
     // Dashed lines removed for plain asphalt road look
@@ -2051,100 +2051,100 @@ export class MapEditor {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     if (this.game.sceneManager.renderer) {
-      texture.anisotropy = this.game.sceneManager.renderer.capabilities.getMaxAnisotropy();
+      texture.anisotropy = Math.min(4, this.game.sceneManager.renderer.capabilities.getMaxAnisotropy());
     }
     return texture;
   }
 
   createRoundaboutTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 256;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d');
     
-    // Resolve grass color (numbers converted to hex strings)
+    // Resolve grass color
     const grassColorVal = (this.game.city && this.game.city.colors) ? this.game.city.colors.grass : 0xa8d48a;
     const grassColor = '#' + grassColorVal.toString(16).padStart(6, '0');
     
     // 1. Fill entire background with asphalt
     ctx.fillStyle = '#22252a';
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, 256, 256);
     
-    // 2. Draw noise over the entire asphalt area
-    for (let i = 0; i < 7000; i++) {
-        const x = Math.random() * 512;
-        const y = Math.random() * 512;
+    // 2. Draw noise over the entire asphalt area (compressed)
+    for (let i = 0; i < 1500; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
         ctx.fillStyle = Math.random() > 0.5 ? '#1a1d21' : '#2a2e35';
-        ctx.fillRect(x, y, 3, 3);
+        ctx.fillRect(x, y, 2, 2);
     }
     
     // 3. Draw outer painted line to suggest the circular roundabout path
     ctx.beginPath();
-    ctx.arc(256, 256, 240, 0, Math.PI * 2);
+    ctx.arc(128, 128, 120, 0, Math.PI * 2);
     ctx.strokeStyle = '#dcdde1';
-    ctx.lineWidth = 6;
-    ctx.setLineDash([20, 20]); // dashed line for roundabout entry border
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 10]); // dashed line for roundabout entry border
     ctx.stroke();
     ctx.setLineDash([]); // reset line dash for next shapes
     
-    // 4. Draw central grass island (radius 130)
+    // 4. Draw central grass island (radius 65)
     ctx.beginPath();
-    ctx.arc(256, 256, 130, 0, Math.PI * 2);
+    ctx.arc(128, 128, 65, 0, Math.PI * 2);
     ctx.fillStyle = grassColor;
     ctx.fill();
     
     // 5. Draw inner curb line (solid white)
     ctx.beginPath();
-    ctx.arc(256, 256, 130, 0, Math.PI * 2);
+    ctx.arc(128, 128, 65, 0, Math.PI * 2);
     ctx.strokeStyle = '#dcdde1';
-    ctx.lineWidth = 12;
+    ctx.lineWidth = 6;
     ctx.stroke();
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     if (this.game.sceneManager.renderer) {
-      texture.anisotropy = this.game.sceneManager.renderer.capabilities.getMaxAnisotropy();
+      texture.anisotropy = Math.min(4, this.game.sceneManager.renderer.capabilities.getMaxAnisotropy());
     }
     return texture;
   }
 
   createNoParkingTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
+    canvas.width = 64;
+    canvas.height = 64;
     const ctx = canvas.getContext('2d');
     
     // White background
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 128, 128);
+    ctx.fillRect(0, 0, 64, 64);
     
     // Blue inner circle
     ctx.beginPath();
-    ctx.arc(64, 64, 52, 0, Math.PI * 2);
+    ctx.arc(32, 32, 26, 0, Math.PI * 2);
     ctx.fillStyle = '#1e3799';
     ctx.fill();
     
     // Red outer ring border
     ctx.beginPath();
-    ctx.arc(64, 64, 52, 0, Math.PI * 2);
+    ctx.arc(32, 32, 26, 0, Math.PI * 2);
     ctx.strokeStyle = '#eb2f06';
-    ctx.lineWidth = 12;
+    ctx.lineWidth = 6;
     ctx.stroke();
     
     // "P" letter
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 68px Arial, sans-serif';
+    ctx.font = '900 34px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('P', 64, 64);
+    ctx.fillText('P', 32, 32);
     
     // Red diagonal strike line
     ctx.beginPath();
-    ctx.moveTo(28, 28);
-    ctx.lineTo(100, 100);
+    ctx.moveTo(14, 14);
+    ctx.lineTo(50, 50);
     ctx.strokeStyle = '#eb2f06';
-    ctx.lineWidth = 12;
+    ctx.lineWidth = 6;
     ctx.stroke();
     
     const texture = new THREE.CanvasTexture(canvas);

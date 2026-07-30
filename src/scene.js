@@ -353,8 +353,130 @@ export class SceneManager {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
   
-  render() {
+  performOcclusionCulling(camera, playerPos, activeTab) {
+    if (!camera || !camera.camera) return;
+    
+    const cam = camera.camera;
+    const cameraPos = cam.position;
+    
+    // 1. Setup Frustum
+    const frustum = new THREE.Frustum();
+    const projScreenMatrix = new THREE.Matrix4();
+    projScreenMatrix.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    frustum.setFromProjectionMatrix(projScreenMatrix);
+    
+    // 2. Set max render distance based on graphics level
+    let maxDist = 250;
+    if (this.graphicsLevel === 'low') maxDist = 120;
+    else if (this.graphicsLevel === 'med') maxDist = 220;
+    else maxDist = 400;
+    
+    // In studio editor tabs, we want a wider visibility
+    const isEditorActive = activeTab && activeTab !== 'play';
+    if (isEditorActive) {
+      maxDist = Math.max(maxDist, 300);
+    }
+    
+    const tempBox = new THREE.Box3();
+    const ray = new THREE.Ray();
+    const hitPoint = new THREE.Vector3();
+    const objDir = new THREE.Vector3();
+    
+    // 3. Cull Placed Objects
+    if (this.placedObjects) {
+      this.placedObjects.forEach(obj => {
+        if (!obj.mesh) return;
+        
+        let visible = true;
+        
+        // A. Distance Culling
+        const dist = cameraPos.distanceTo(obj.position);
+        if (dist > maxDist) {
+          visible = false;
+        }
+        
+        // B. Frustum Culling
+        if (visible) {
+          tempBox.setFromObject(obj.mesh);
+          if (!frustum.intersectsBox(tempBox)) {
+            visible = false;
+          }
+        }
+        
+        // C. Occlusion Culling (only for props/smaller elements, not roads/ground/large buildings/water to avoid popping)
+        const isCullableProp = visible && ![
+          'road', 'road_roundabout', 'road_ramp', 'terrain_block', 'water', 'building'
+        ].includes(obj.type) && !obj.type.startsWith('custom_');
+        
+        if (isCullableProp && this.buildingBoxes && this.buildingBoxes.length > 0) {
+          objDir.subVectors(obj.position, cameraPos).normalize();
+          ray.set(cameraPos, objDir);
+          const objDist = cameraPos.distanceTo(obj.position);
+          
+          for (let i = 0; i < this.buildingBoxes.length; i++) {
+            const box = this.buildingBoxes[i];
+            if (box.containsPoint(cameraPos) || box.containsPoint(obj.position)) {
+              continue;
+            }
+            
+            if (ray.intersectBox(box, hitPoint)) {
+              const hitDist = cameraPos.distanceTo(hitPoint);
+              if (hitDist + 1.0 < objDist) {
+                visible = false;
+                break;
+              }
+            }
+          }
+        }
+        
+        obj.mesh.visible = visible;
+      });
+    }
+    
+    // 4. Cull NPCs
+    const npcs = this.scene.children.filter(child => child.name === 'npc');
+    npcs.forEach(npc => {
+      let visible = true;
+      const dist = cameraPos.distanceTo(npc.position);
+      if (dist > maxDist) {
+        visible = false;
+      }
+      
+      if (visible) {
+        tempBox.setFromObject(npc);
+        if (!frustum.intersectsBox(tempBox)) {
+          visible = false;
+        }
+      }
+      
+      if (visible && this.buildingBoxes && this.buildingBoxes.length > 0) {
+        objDir.subVectors(npc.position, cameraPos).normalize();
+        ray.set(cameraPos, objDir);
+        const objDist = cameraPos.distanceTo(npc.position);
+        
+        for (let i = 0; i < this.buildingBoxes.length; i++) {
+          const box = this.buildingBoxes[i];
+          if (box.containsPoint(cameraPos) || box.containsPoint(npc.position)) {
+            continue;
+          }
+          
+          if (ray.intersectBox(box, hitPoint)) {
+            const hitDist = cameraPos.distanceTo(hitPoint);
+            if (hitDist + 1.0 < objDist) {
+              visible = false;
+              break;
+            }
+          }
+        }
+      }
+      npc.visible = visible;
+    });
+  }
+  
+  render(activeTab) {
     if (this.camera && this.camera.camera) {
+      const playerPos = (this.camera._target) ? this.camera._target : new THREE.Vector3();
+      this.performOcclusionCulling(this.camera, playerPos, activeTab);
       this.renderer.render(this.scene, this.camera.camera);
     }
   }

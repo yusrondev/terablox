@@ -675,18 +675,18 @@ export class CityGenerator {
 
   createRoadTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 256;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d');
     
     // Asphalt base
     ctx.fillStyle = '#22252a';
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, 256, 256);
     
-    // Slight noise for asphalt
-    for (let i = 0; i < 8000; i++) {
+    // Slight noise for asphalt (compressed: fewer rects, smaller size)
+    for (let i = 0; i < 1500; i++) {
         ctx.fillStyle = Math.random() > 0.5 ? '#1a1d21' : '#2a2e35';
-        ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+        ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
     }
     
     // Dashed lines removed for plain asphalt road look
@@ -695,15 +695,15 @@ export class CityGenerator {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     if (this.sceneManager.renderer) {
-      texture.anisotropy = this.sceneManager.renderer.capabilities.getMaxAnisotropy();
+      texture.anisotropy = Math.min(4, this.sceneManager.renderer.capabilities.getMaxAnisotropy());
     }
     return texture;
   }
 
   createTrafficLightTexture() {
     this.tlCanvas = document.createElement('canvas');
-    this.tlCanvas.width = 64;
-    this.tlCanvas.height = 192; // 1:3 ratio
+    this.tlCanvas.width = 32;
+    this.tlCanvas.height = 96; // 1:3 ratio
     this.tlCtx = this.tlCanvas.getContext('2d');
     
     this.tlTexture = new THREE.CanvasTexture(this.tlCanvas);
@@ -722,32 +722,32 @@ export class CityGenerator {
     
     // Black housing
     ctx.fillStyle = '#111111';
-    ctx.fillRect(0, 0, 64, 192);
+    ctx.fillRect(0, 0, 32, 96);
     
     // Circles: Top = Red (0), Middle = Orange/Yellow (1), Bottom = Green (2)
     const activeColors = ['#ff0000', '#ffaa00', '#00ff00'];
     const inactiveColors = ['#220000', '#221100', '#002200'];
     
-    const centersY = [32, 96, 160];
+    const centersY = [16, 48, 80];
     
     for (let i = 0; i < 3; i++) {
       // Draw outer light frame ring
       ctx.beginPath();
-      ctx.arc(32, centersY[i], 16, 0, Math.PI * 2);
+      ctx.arc(16, centersY[i], 8, 0, Math.PI * 2);
       ctx.strokeStyle = '#222222';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
       
       // Draw light circle
       ctx.beginPath();
-      ctx.arc(32, centersY[i], 13, 0, Math.PI * 2);
+      ctx.arc(16, centersY[i], 6.5, 0, Math.PI * 2);
       ctx.fillStyle = (i === activeColorIndex) ? activeColors[i] : inactiveColors[i];
       ctx.fill();
       
       // Subtle shine highlight for the active light
       if (i === activeColorIndex) {
         ctx.beginPath();
-        ctx.arc(28, centersY[i] - 4, 4, 0, Math.PI * 2);
+        ctx.arc(14, centersY[i] - 2, 2, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
         ctx.fill();
       }

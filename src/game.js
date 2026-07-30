@@ -165,7 +165,8 @@ export class Game {
     this.uiManager.update();
     
     // 6. Render
-    this.sceneManager.render();
+    const activeTab = this.editorManager ? this.editorManager.activeTab : 'play';
+    this.sceneManager.render(activeTab);
     
     requestAnimationFrame(this.loop);
   }
