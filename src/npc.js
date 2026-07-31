@@ -232,50 +232,66 @@ class NPC {
       }
     }
     
-    // Lookahead building obstacle avoidance
-    if (this.state === 'walk') {
-      const lookAheadDist = 2.5;
-      const lookAheadPos = new THREE.Vector3(
-        px + this.direction.x * lookAheadDist,
-        py + 0.5,
-        pz + this.direction.z * lookAheadDist
-      );
-      
-      let willCollide = false;
-      const boxes = this.sceneManager.buildingBoxes || [];
-      for (let i = 0; i < boxes.length; i++) {
-        if (boxes[i].containsPoint(lookAheadPos)) {
-          willCollide = true;
-          break;
+      // Lookahead building obstacle avoidance
+      if (this.state === 'walk') {
+        const lookAheadDist = 2.5;
+        const lookAheadPos = new THREE.Vector3(
+          px + this.direction.x * lookAheadDist,
+          py + 0.5,
+          pz + this.direction.z * lookAheadDist
+        );
+        
+        let willCollide = false;
+        const boxes = this.sceneManager.buildingBoxes || [];
+        for (let i = 0; i < boxes.length; i++) {
+          if (boxes[i].containsPoint(lookAheadPos)) {
+            willCollide = true;
+            break;
+          }
+        }
+        
+        if (willCollide) {
+          // Bounce / choose new direction
+          this.direction.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+          this.changeDirTimer = 3 + Math.random() * 4;
         }
       }
-      
-      if (willCollide) {
-        // Bounce / choose new direction
-        this.direction.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
-        this.changeDirTimer = 3 + Math.random() * 4;
+      if (this.state === 'walk') {
+        let finalSpeed = this.speed;
+        if (inWater) finalSpeed *= 0.45; // Swim slower
+        this.body.velocity.x = this.direction.x * finalSpeed;
+        this.body.velocity.z = this.direction.z * finalSpeed;
+        this.mesh.rotation.y = Math.atan2(this.direction.x, this.direction.z);
+        
+        // Displacement-based stuck detection (reliable path block detection)
+        if (!this.prevPos) {
+          this.prevPos = new THREE.Vector3();
+          this.prevPos.copy(this.body.position);
+        }
+        const distMoved = new THREE.Vector3(
+          this.body.position.x - this.prevPos.x,
+          0,
+          this.body.position.z - this.prevPos.z
+        ).length();
+        const actualSpeed = distMoved / Math.max(0.001, deltaTime);
+
+        this.stuckCooldown = (this.stuckCooldown || 0) - deltaTime;
+        if (actualSpeed < 0.25 && this.stuckCooldown <= 0) {
+          this.direction.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+          this.changeDirTimer = 3 + Math.random() * 4;
+          this.stuckCooldown = 1.0; // 1 second cooldown to allow NPC to clear the obstacle
+        }
+        this.prevPos.copy(this.body.position);
+      } else {
+        // Dampen horizontal velocity when idle. Very low damp (0.1) stops the NPC instantly.
+        let damp = inWater ? 0.82 : 0.1;
+        this.body.velocity.x *= damp;
+        this.body.velocity.z *= damp;
+        this.stuckCooldown = 0;
+        if (this.prevPos) {
+          this.prevPos.copy(this.body.position);
+        }
       }
-    }
-    
-    if (this.state === 'walk') {
-      let finalSpeed = this.speed;
-      if (inWater) finalSpeed *= 0.45; // Swim slower
-      this.body.velocity.x = this.direction.x * finalSpeed;
-      this.body.velocity.z = this.direction.z * finalSpeed;
-      this.mesh.rotation.y = Math.atan2(this.direction.x, this.direction.z);
-      
-      // Stuck detection (if moving very slowly but state is walk, steer away)
-      const horizontalVel = new THREE.Vector2(this.body.velocity.x, this.body.velocity.z).length();
-      if (horizontalVel < 0.25 && this.changeDirTimer < 5.0) {
-        this.direction.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
-        this.changeDirTimer = 3 + Math.random() * 4;
-      }
-    } else {
-      // Dampen horizontal velocity when idle. Very low damp (0.1) stops the NPC instantly.
-      let damp = inWater ? 0.82 : 0.1;
-      this.body.velocity.x *= damp;
-      this.body.velocity.z *= damp;
-    }
     
     if (inWater) {
       // Water drag/friction
