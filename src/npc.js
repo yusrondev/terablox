@@ -14,9 +14,17 @@ export class NPCManager {
   }
   
   spawnNPCs(roamingCount = 3, fixedSpawns = []) {
+    const game = this.sceneManager.game;
+    const rand = (game && game.city && game.city.random) ? game.city.random : Math.random;
+
     // Clear any existing NPCs
     this.npcs.forEach(npc => {
-      if (npc.mesh) this.sceneManager.scene.remove(npc.mesh);
+      if (npc.mesh) {
+        this.sceneManager.scene.remove(npc.mesh);
+        // Untrack from scene manager culling list
+        const idx = this.sceneManager.trackedNPCs.indexOf(npc.mesh);
+        if (idx !== -1) this.sceneManager.trackedNPCs.splice(idx, 1);
+      }
       if (npc.body) this.physicsManager.removeBody(npc.body);
     });
     this.npcs = [];
@@ -28,14 +36,34 @@ export class NPCManager {
     
     // 2. Spawn randomly distributed roaming NPCs
     for (let i = 0; i < roamingCount; i++) {
-      const x = (Math.random() - 0.5) * 60;
-      const z = (Math.random() - 0.5) * 60;
+      const x = (rand() - 0.5) * 60;
+      const z = (rand() - 0.5) * 60;
       this.npcs.push(new NPC(this.sceneManager, this.physicsManager, x, z));
     }
   }
   
-  update(deltaTime) {
-    for (const npc of this.npcs) npc.update(deltaTime);
+  update(deltaTime, playerPos, multiplayer = null) {
+    this._frameCount = (this._frameCount || 0) + 1;
+    const isRemote = multiplayer && multiplayer.connected && !multiplayer.isHost;
+    
+    for (let i = 0; i < this.npcs.length; i++) {
+      const npc = this.npcs[i];
+      
+      if (isRemote) {
+        const remoteData = multiplayer.sceneManager._remoteNpcTargets ? multiplayer.sceneManager._remoteNpcTargets[i] : null;
+        npc.update(deltaTime, this._frameCount, true, remoteData);
+      } else {
+        // LOD: update distance to player
+        if (playerPos && npc.mesh) {
+          npc.distToPlayer = npc.mesh.position.distanceTo(playerPos);
+        }
+        
+        // LOD: NPCs far from player only update every 3rd frame
+        if (npc.distToPlayer > 30 && this._frameCount % 3 !== 0) continue;
+        
+        npc.update(deltaTime, this._frameCount, false, null);
+      }
+    }
   }
 }
 
@@ -55,19 +83,22 @@ class NPC {
     this.physicsManager = physicsManager;
     this.speed = 1.8;
     
+    const game = sceneManager.game;
+    const rand = (game && game.city && game.city.random) ? game.city.random : Math.random;
+    
     this.animTime = 0;
     this.changeDirTimer = 0;
     this.state = 'walk';
-    this.direction = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+    this.direction = new THREE.Vector3(rand() - 0.5, 0, rand() - 0.5).normalize();
     
-    this._buildMesh();
+    this._buildMesh(rand);
     this._buildBody(startX, startZ);
   }
   
-  _buildMesh() {
+  _buildMesh(rand) {
     this.mesh = new THREE.Group();
     const shirtMat = new THREE.MeshStandardMaterial({
-      color: _shirtColors[Math.floor(Math.random() * _shirtColors.length)],
+      color: _shirtColors[Math.floor(rand() * _shirtColors.length)],
       roughness: 1.0
     });
     
@@ -112,25 +143,62 @@ class NPC {
     this.mesh.name = 'npc';
     
     this.sceneManager.scene.add(this.mesh);
+    // Register in scene manager tracked list for O(1) culling
+    this.sceneManager.trackedNPCs.push(this.mesh);
   }
   
   _buildBody(x, z) {
     this.body = new CANNON.Body({
       mass: 40,
       fixedRotation: true,
-      linearDamping: 0.05, // Normal low damping to allow realistic gravity/falling
+      linearDamping: 0.05,
       material: this.physicsManager.defaultMaterial,
-      allowSleep: false,
+      allowSleep: true,  // Perf: let Cannon-ES suspend idle NPCs
+      sleepSpeedLimit: 0.3,
+      sleepTimeLimit: 1.0,
     });
     this.body.addShape(new CANNON.Sphere(SPHERE_R), new CANNON.Vec3(0, SPHERE_R, 0));
     this.body.position.set(x, 3, z);
     this.physicsManager.addBody(this.body);
+    
+    // Per-NPC caches
+    this.distToPlayer = 999;
+    this._cachedWaterTiles = null;
+    this._waterCacheFrame  = -999;
   }
   
-  update(deltaTime) {
-    // Water detection
-    const placedObjects = this.sceneManager.placedObjects || [];
-    const waterTiles = placedObjects.filter(obj => obj.type === 'water');
+  update(deltaTime, frameCount, isRemote = false, remoteData = null) {
+    if (isRemote && remoteData) {
+      // Bypassed path for Joiners (Interpolate positions from Host)
+      this.mesh.position.lerp(new THREE.Vector3(remoteData.x, remoteData.y, remoteData.z), 0.22);
+      
+      const dy = remoteData.rotY - this.mesh.rotation.y;
+      const dyClamped = ((dy + Math.PI) % (Math.PI * 2)) - Math.PI;
+      this.mesh.rotation.y += dyClamped * 0.22;
+      
+      this.state = remoteData.state;
+      this.animTime = remoteData.animTime || 0;
+      
+      // Sync Cannon physics body to match mesh to prevent players passing through
+      this.body.type = CANNON.Body.KINEMATIC;
+      this.body.position.copy(this.mesh.position);
+      this.body.velocity.set(0, 0, 0);
+      this.body.angularVelocity.set(0, 0, 0);
+      
+      this.animate(deltaTime, false);
+      return;
+    }
+
+    // Host or Local: Run physics & AI
+    this.body.type = CANNON.Body.DYNAMIC;
+
+    // Perf: Refresh water tile cache every 120 frames instead of filtering every frame
+    if (!this._cachedWaterTiles || (frameCount - this._waterCacheFrame) > 120) {
+      const placedObjects = this.sceneManager.placedObjects || [];
+      this._cachedWaterTiles = placedObjects.filter(obj => obj.type === 'water');
+      this._waterCacheFrame = frameCount || 0;
+    }
+    const waterTiles = this._cachedWaterTiles;
     let inWater = false;
     let waterY = 0;
     
@@ -245,6 +313,10 @@ class NPC {
     }
     
     // Animation
+    this.animate(deltaTime, inWater);
+  }
+
+  animate(deltaTime, inWater) {
     if (inWater) {
       if (this.state === 'walk') {
         this.animTime += deltaTime * 10;

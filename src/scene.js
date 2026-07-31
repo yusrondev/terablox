@@ -30,9 +30,23 @@ export class SceneManager {
     // Weather Manager & Building bounds
     this.buildingBoxes = []; // Populated by CityGenerator for camera collision
     this.interactables = []; // Populated by CityGenerator for interaction (e.g. sitting benches)
+    this.trackedNPCs = [];   // Maintained list of NPC meshes — avoids scene.children.filter every frame
     
     // Environment & Weather System
     this.weatherManager = new WeatherManager(this);
+    
+    // ── Perf: Reusable objects to eliminate GC pressure per frame ─────────
+    this._frustum          = new THREE.Frustum();
+    this._projScreenMatrix = new THREE.Matrix4();
+    this._tempBox          = new THREE.Box3();
+    this._ray              = new THREE.Ray();
+    this._hitPoint         = new THREE.Vector3();
+    this._objDir           = new THREE.Vector3();
+    
+    // ── Perf: Frame throttle counters ─────────────────────────────────────
+    this._frameCount           = 0;                  // incremented in render()
+    this._lastSortPlayerPos    = new THREE.Vector3(); // for street light sort throttle
+    this._streetLightSortDirty = true;               // force first sort
     
     // Flat unlit materials for GTA V style minimap (immune to night & weather)
     this.flatMinimapGroundMat = new THREE.MeshBasicMaterial({ color: 0x181c22, side: THREE.DoubleSide });
@@ -175,7 +189,7 @@ export class SceneManager {
       this.streetLightBulbMaterial.color.setRGB(rBulb, gBulb, bBulb);
 
       if (this.streetLightConeMaterial) {
-        this.streetLightConeMaterial.opacity = intensity * 0.28; // boosted brightness near top
+        this.streetLightConeMaterial.opacity = intensity * 0.28;
       }
 
       // Building windows glow brightly at night and during rain
@@ -185,19 +199,26 @@ export class SceneManager {
       this.windowMaterial.color.setRGB(rWin, gWin, bWin);
     }
 
-    // 2. Point lights pool positioning (High intensity street lights)
+    // 2. Point lights pool positioning — only re-sort when player moves >5m (perf throttle)
     if (intensity <= 0.02 || !playerPos || this.streetLightPositions.length === 0) {
       for (const pLight of this.streetLightPool) {
         pLight.intensity = 0;
       }
+      this._streetLightSortDirty = false;
       return;
     }
 
-    // Find closest street light positions to player
-    const sorted = [...this.streetLightPositions].sort((a, b) => {
-      return a.distanceToSquared(playerPos) - b.distanceToSquared(playerPos);
-    });
+    const movedDist = this._lastSortPlayerPos.distanceTo(playerPos);
+    if (movedDist > 5.0 || this._streetLightSortDirty) {
+      this._lastSortPlayerPos.copy(playerPos);
+      this._streetLightSortDirty = false;
+      // Sort only when player has moved significantly
+      this._sortedStreetLights = [...this.streetLightPositions].sort((a, b) =>
+        a.distanceToSquared(playerPos) - b.distanceToSquared(playerPos)
+      );
+    }
 
+    const sorted = this._sortedStreetLights || this.streetLightPositions;
     for (let i = 0; i < this.streetLightPool.length; i++) {
       const pLight = this.streetLightPool[i];
       if (i < sorted.length) {
@@ -377,11 +398,9 @@ export class SceneManager {
     const cam = camera.camera;
     const cameraPos = cam.position;
     
-    // 1. Setup Frustum
-    const frustum = new THREE.Frustum();
-    const projScreenMatrix = new THREE.Matrix4();
-    projScreenMatrix.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
-    frustum.setFromProjectionMatrix(projScreenMatrix);
+    // 1. Reuse cached Frustum & Matrix (no GC allocation per frame)
+    this._projScreenMatrix.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    this._frustum.setFromProjectionMatrix(this._projScreenMatrix);
     
     // 2. Set max render distance based on graphics level
     let maxDist = 250;
@@ -389,16 +408,17 @@ export class SceneManager {
     else if (this.graphicsLevel === 'med') maxDist = 220;
     else maxDist = 400;
     
-    // In studio editor tabs, we want a wider visibility
     const isEditorActive = activeTab && activeTab !== 'play';
     if (isEditorActive) {
       maxDist = Math.max(maxDist, 300);
     }
     
-    const tempBox = new THREE.Box3();
-    const ray = new THREE.Ray();
-    const hitPoint = new THREE.Vector3();
-    const objDir = new THREE.Vector3();
+    // Use cached reusable objects instead of allocating new ones each frame
+    const tempBox  = this._tempBox;
+    const ray      = this._ray;
+    const hitPoint = this._hitPoint;
+    const objDir   = this._objDir;
+    const frustum  = this._frustum;
     
     // 3. Cull Placed Objects
     if (this.placedObjects) {
@@ -421,7 +441,7 @@ export class SceneManager {
           }
         }
         
-        // C. Occlusion Culling (only for props/smaller elements, not roads/ground/large buildings/water to avoid popping)
+        // C. Occlusion Culling (only for props/smaller elements)
         const isCullableProp = visible && ![
           'road', 'road_roundabout', 'road_ramp', 'terrain_block', 'water', 'building', 'rumah', 'ruko'
         ].includes(obj.type) && !obj.type.startsWith('custom_');
@@ -436,7 +456,6 @@ export class SceneManager {
             if (box.containsPoint(cameraPos) || box.containsPoint(obj.position)) {
               continue;
             }
-            
             if (ray.intersectBox(box, hitPoint)) {
               const hitDist = cameraPos.distanceTo(hitPoint);
               if (hitDist + 1.0 < objDist) {
@@ -451,9 +470,12 @@ export class SceneManager {
       });
     }
     
-    // 4. Cull NPCs
-    const npcs = this.scene.children.filter(child => child.name === 'npc');
-    npcs.forEach(npc => {
+    // 4. Cull NPCs — use tracked list instead of scene.children.filter() every frame
+    const npcs = this.trackedNPCs;
+    for (let n = 0; n < npcs.length; n++) {
+      const npc = npcs[n];
+      if (!npc.parent) continue; // removed from scene
+      
       let visible = true;
       const dist = cameraPos.distanceTo(npc.position);
       if (dist > maxDist) {
@@ -477,7 +499,6 @@ export class SceneManager {
           if (box.containsPoint(cameraPos) || box.containsPoint(npc.position)) {
             continue;
           }
-          
           if (ray.intersectBox(box, hitPoint)) {
             const hitDist = cameraPos.distanceTo(hitPoint);
             if (hitDist + 1.0 < objDist) {
@@ -488,13 +509,20 @@ export class SceneManager {
         }
       }
       npc.visible = visible;
-    });
+    }
   }
   
   render(activeTab) {
     if (this.camera && this.camera.camera) {
+      // Increment frame counter (used for throttling expensive operations)
+      this._frameCount = (this._frameCount + 1) | 0;
+      
       const playerPos = (this.camera._target) ? this.camera._target : new THREE.Vector3();
-      this.performOcclusionCulling(this.camera, playerPos, activeTab);
+      
+      // Perf: Run occlusion culling only every 3 frames (invisible to player at 60fps)
+      if (this._frameCount % 3 === 0) {
+        this.performOcclusionCulling(this.camera, playerPos, activeTab);
+      }
       
       // 1. Reset viewport for main scene render
       this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
@@ -503,7 +531,7 @@ export class SceneManager {
       
       this.renderer.render(this.scene, this.camera.camera);
       
-      // 2. Draw 100% accurate minimap during gameplay
+      // 2. Draw minimap during gameplay
       const isGameplay = activeTab === 'play' || !activeTab;
       if (isGameplay) {
         this.renderMinimap(playerPos);

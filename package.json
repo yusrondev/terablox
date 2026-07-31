@@ -6,12 +6,15 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node server/index.js",
+    "server:dev": "node --watch server/index.js"
   },
   "devDependencies": {
     "vite": "^4.5.3"
   },
   "dependencies": {
+    "@colyseus/sdk": "^0.17.43",
     "cannon-es": "^0.20.0",
     "nipplejs": "^0.10.2",
     "three": "^0.164.0"

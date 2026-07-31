@@ -1448,6 +1448,7 @@ export class MapEditor {
     if (type === 'bench') {
       this.game.sceneManager.interactables.push({
         type: 'bench',
+        uid: `bench_${Math.round(visualMesh.position.x)}_${Math.round(visualMesh.position.y)}_${Math.round(visualMesh.position.z)}`,
         position: new THREE.Vector3(visualMesh.position.x, visualMesh.position.y + 0.6, visualMesh.position.z),
         rotation: this.rotationAngle
       });
@@ -1463,6 +1464,7 @@ export class MapEditor {
           asset: asset,
           mesh: visualMesh,
           body: physicsBody,
+          uid: `veh_${Math.round(visualMesh.position.x)}_${Math.round(visualMesh.position.y)}_${Math.round(visualMesh.position.z)}`,
           position: visualMesh.position, // Reference so proximity check updates dynamically as vehicle moves
           rotation: this.rotationAngle
         });

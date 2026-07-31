@@ -110,6 +110,20 @@ export class WeatherManager {
     this.lightningFlash = 0.0;
     this.lightningTimer = 4.0 + Math.random() * 4.0;
     
+    // Perf: pre-allocated Color objects to avoid per-frame GC allocations
+    this._flashColor      = new THREE.Color(0xdceaff);
+    this._sunColorNight   = new THREE.Color(0xddf0ff);
+    this._sunColorSore    = new THREE.Color(0xff4411);
+    this._sunColorDay     = new THREE.Color(0xffddaa);
+    this._lightningWhite  = new THREE.Color(0xffffff);
+    this._roadColorRain   = new THREE.Color(0x777777);
+    this._roadColorDry    = new THREE.Color(0xffffff);
+    this._sidewalkColorRain = new THREE.Color(0x999999);
+    this._sidewalkColorDry  = new THREE.Color(0xffffff);
+    
+    // Rain frame throttle counter
+    this._rainFrameCount = 0;
+    
     this.createRainSystem();
     this.createStarSystem();
     this.createCloudSystem();
@@ -266,9 +280,8 @@ export class WeatherManager {
     this.sceneManager.scene.background.lerp(targetPreset.skyColor, lerpSpeed);
     this.sceneManager.scene.fog.color.lerp(targetPreset.fogColor, lerpSpeed);
     if (this.lightningFlash > 0.0) {
-      const flashColor = new THREE.Color(0xdceaff);
-      this.sceneManager.scene.background.lerp(flashColor, this.lightningFlash * 0.9);
-      this.sceneManager.scene.fog.color.lerp(flashColor, this.lightningFlash * 0.9);
+      this.sceneManager.scene.background.lerp(this._flashColor, this.lightningFlash * 0.9);
+      this.sceneManager.scene.fog.color.lerp(this._flashColor, this.lightningFlash * 0.9);
     }
     
     // Scale fog distance based on graphics level to match camera draw distance culling
@@ -298,7 +311,7 @@ export class WeatherManager {
     let nextSunInt = curSunInt + (targetPreset.sunIntensity - curSunInt) * lerpSpeed;
     if (this.lightningFlash > 0.0) {
       nextSunInt = THREE.MathUtils.lerp(nextSunInt, 2.2, this.lightningFlash);
-      this.sceneManager.directionalLight.color.lerp(new THREE.Color(0xffffff), this.lightningFlash);
+      this.sceneManager.directionalLight.color.lerp(this._lightningWhite, this.lightningFlash);
     }
     this.sceneManager.directionalLight.intensity = nextSunInt;
     
@@ -314,11 +327,11 @@ export class WeatherManager {
     this.sceneManager.sunMesh.scale.set(newScale, newScale, newScale);
     
     if (this.currentWeather === 'malam') {
-      this.sceneManager.sunMaterial.color.lerp(new THREE.Color(0xddf0ff), lerpSpeed);
+      this.sceneManager.sunMaterial.color.lerp(this._sunColorNight, lerpSpeed);
     } else if (this.currentWeather === 'sore' || this.currentWeather === 'panas') {
-      this.sceneManager.sunMaterial.color.lerp(new THREE.Color(0xff4411), lerpSpeed);
+      this.sceneManager.sunMaterial.color.lerp(this._sunColorSore, lerpSpeed);
     } else {
-      this.sceneManager.sunMaterial.color.lerp(new THREE.Color(0xffddaa), lerpSpeed);
+      this.sceneManager.sunMaterial.color.lerp(this._sunColorDay, lerpSpeed);
     }
     
     this.sceneManager.sunMesh.visible = !!targetPreset.sunVisible;
@@ -340,17 +353,20 @@ export class WeatherManager {
       this.starMesh.position.copy(playerPos);
     }
     
-    // 5. Update Rain drops animation
+    // 5. Update Rain drops animation (throttled: update every 2 frames to reduce CPU cost)
     const targetRainOpacity = targetPreset.rainActive ? 0.8 : 0.0;
     this.rainMesh.material.opacity += (targetRainOpacity - this.rainMesh.material.opacity) * lerpSpeed;
     
-    if (this.rainMesh.material.opacity > 0.01 && playerPos) {
+    this._rainFrameCount = (this._rainFrameCount + 1) | 0;
+    if (this.rainMesh.material.opacity > 0.01 && playerPos && this._rainFrameCount % 2 === 0) {
       this.rainMesh.position.x = playerPos.x;
       this.rainMesh.position.z = playerPos.z;
       
+      // Scale dt by 2 to compensate for skipped frame
+      const rainDt = dt * 2;
       const positions = this.rainMesh.geometry.attributes.position.array;
       for (let i = 0; i < this.rainCount; i++) {
-        positions[i * 3 + 1] -= this.rainVelocities[i] * dt;
+        positions[i * 3 + 1] -= this.rainVelocities[i] * rainDt;
         if (positions[i * 3 + 1] < 0) {
           positions[i * 3 + 1] = 45;
           positions[i * 3] = (Math.random() - 0.5) * 90;
@@ -361,16 +377,16 @@ export class WeatherManager {
     }
 
 
-    // 6. Update Wet Road & Sidewalk effects (Dampen/Darken color instead of shiny reflections)
+    // 6. Update Wet Road & Sidewalk effects
     if (this.sceneManager.roadMaterial) {
-      const targetColor = (this.currentWeather === 'hujan') ? new THREE.Color(0x777777) : new THREE.Color(0xffffff);
+      const targetColor = (this.currentWeather === 'hujan') ? this._roadColorRain : this._roadColorDry;
       const targetRoughness = (this.currentWeather === 'hujan') ? 0.8 : 0.85;
       this.sceneManager.roadMaterial.color.lerp(targetColor, lerpSpeed);
       this.sceneManager.roadMaterial.roughness += (targetRoughness - this.sceneManager.roadMaterial.roughness) * lerpSpeed;
       this.sceneManager.roadMaterial.metalness += (0.05 - this.sceneManager.roadMaterial.metalness) * lerpSpeed;
     }
     if (this.sceneManager.sidewalkMaterial) {
-      const targetColor = (this.currentWeather === 'hujan') ? new THREE.Color(0x999999) : new THREE.Color(0xffffff);
+      const targetColor = (this.currentWeather === 'hujan') ? this._sidewalkColorRain : this._sidewalkColorDry;
       const targetRoughness = (this.currentWeather === 'hujan') ? 0.75 : 0.8;
       this.sceneManager.sidewalkMaterial.color.lerp(targetColor, lerpSpeed);
       this.sceneManager.sidewalkMaterial.roughness += (targetRoughness - this.sceneManager.sidewalkMaterial.roughness) * lerpSpeed;

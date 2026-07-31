@@ -8,7 +8,21 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   server: {
-    host: true
+    host: true,
+    proxy: {
+      // Proxy Colyseus matchmaker HTTP requests
+      '/matchmake': {
+        target: 'http://localhost:2567',
+        changeOrigin: true
+      },
+      // Proxy Colyseus WebSockets (rooms/connections)
+      // Matches any path that is not standard Vite/src assets
+      '^/(?!(src|node_modules|@vite|@id|api|index.html|style.css|favicon.ico|$)).*': {
+        target: 'ws://localhost:2567',
+        ws: true,
+        changeOrigin: true
+      }
+    }
   },
   plugins: [
     {

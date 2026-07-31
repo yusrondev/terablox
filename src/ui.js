@@ -44,6 +44,9 @@ export class UIManager {
     const buttons = document.querySelectorAll('.weather-btn');
     buttons.forEach(btn => {
       btn.addEventListener('click', (e) => {
+        if (btn.classList.contains('disabled-weather')) {
+          return; // Ignore clicking if disabled for joiner
+        }
         const weatherType = btn.getAttribute('data-weather');
         if (weatherType && this.sceneManager && this.sceneManager.weatherManager) {
           this.sceneManager.weatherManager.setWeather(weatherType);
@@ -53,6 +56,39 @@ export class UIManager {
         }
       });
     });
+  }
+
+  updateWeatherButtonsState(isHost) {
+    const section = document.querySelector('.weather-buttons');
+    if (!section) return;
+    const buttons = section.querySelectorAll('.weather-btn');
+    buttons.forEach(btn => {
+      if (!isHost) {
+        btn.classList.add('disabled-weather');
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+      } else {
+        btn.classList.remove('disabled-weather');
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+      }
+    });
+
+    let label = document.getElementById('weather-host-only-note');
+    if (!isHost) {
+      if (!label) {
+        label = document.createElement('div');
+        label.id = 'weather-host-only-note';
+        label.style.fontSize = '11px';
+        label.style.color = '#ef4444';
+        label.style.marginTop = '6px';
+        label.style.textAlign = 'center';
+        label.innerText = '⚠️ Hanya bisa diubah oleh Host';
+        section.parentNode.appendChild(label);
+      }
+    } else {
+      if (label) label.remove();
+    }
   }
   
   initSettingsPanel() {

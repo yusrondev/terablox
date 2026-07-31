@@ -16,6 +16,15 @@ import * as CANNON from 'cannon-es';
 const SPHERE_R = 0.5;   // radius of physics sphere
 const FOOT_OFFSET = 0;  // mesh.position = body.position (body origin IS the feet)
 
+function getInteractableId(interactable) {
+  if (!interactable) return null;
+  // Prefer stable uid assigned at spawn; fall back to rounded initial position
+  if (interactable.uid) return interactable.uid;
+  const p = interactable.position;
+  if (!p) return null;
+  return `${Math.round(p.x)}_${Math.round(p.y)}_${Math.round(p.z)}`;
+}
+
 export class Player {
   constructor(sceneManager, physicsManager, cameraManager, controlsManager) {
     this.sceneManager = sceneManager;
@@ -31,6 +40,7 @@ export class Player {
     this.animTime = 0;
     this.state = 'idle';
     this.currentVehicle = null;
+    this.currentInteractableId = null;
     
     // Reusable temp vectors (avoid GC pressure per frame)
     this._moveDir = new THREE.Vector3();
@@ -472,8 +482,11 @@ export class Player {
       if (btnRem) btnRem.style.display = 'block';
       if (btnSprint) btnSprint.style.display = 'none';
       if (btnJump) btnJump.textContent = 'Turun';
+      
+      this.currentInteractableId = getInteractableId(interactable);
     } else {
       this.state = 'sitting';
+      this.currentInteractableId = getInteractableId(interactable);
       
       // Face the opposite direction of the backrest (forward facing)
       const sitRot = interactable.rotation + Math.PI;
@@ -548,6 +561,8 @@ export class Player {
       // Jump slightly to pop off the bench
       this.body.velocity.y = 5.0;
     }
+    
+    this.currentInteractableId = null;
     
     // Reset control flag so they don't immediately jump again if they used jump to unsit
     this.controlsManager.keys.jump = false;

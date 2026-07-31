@@ -1,11 +1,39 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
+function getSeedFromRoomId(roomId) {
+  if (!roomId) return 12345;
+  let hash = 0;
+  for (let i = 0; i < roomId.length; i++) {
+    hash = roomId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash);
+}
+
+function createSeededRandom(seed) {
+  let s = seed;
+  return function() {
+    let t = s += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+}
+
 export class CityGenerator {
   constructor(sceneManager, physicsManager, options = {}) {
     this.sceneManager  = sceneManager;
     this.physicsManager = physicsManager;
     this.options = options;
+    
+    // Set seed-based random or fallback to Math.random
+    this.seed = options.seed || null;
+    if (this.seed) {
+      const seedNum = getSeedFromRoomId(this.seed);
+      this.random = createSeededRandom(seedNum);
+    } else {
+      this.random = Math.random;
+    }
     
     // Pastel color palette
     this.colors = {
@@ -242,7 +270,7 @@ export class CityGenerator {
         swBody.position.set(ox, 0.2, oz);
         this.physicsManager.addBody(swBody);
         
-        const isPark = Math.random() > 0.7;
+        const isPark = this.random() > 0.7;
         
         if (isPark) {
           // Trees
@@ -272,10 +300,10 @@ export class CityGenerator {
             [ox + 9, oz + 9],
           ];
           for (const [bldX, bldZ] of corners) {
-            const w = 7 + Math.random() * 4;
-            const d = 7 + Math.random() * 4;
-            const h = 8 + Math.random() * 28;
-            const cIdx = Math.floor(Math.random() * buildIMs.length);
+            const w = 7 + this.random() * 4;
+            const d = 7 + this.random() * 4;
+            const h = 8 + this.random() * 28;
+            const cIdx = Math.floor(this.random() * buildIMs.length);
             
             const halfH = h / 2;
             const posY  = 0.4 + halfH; // sits on top of sidewalk (0.4 = sidewalk height)
@@ -479,6 +507,7 @@ export class CityGenerator {
           // Register interaction point for sitting
           this.sceneManager.interactables.push({
             type: 'bench',
+            uid: `bench_${Math.round(bx)}_0_${Math.round(bz)}`,
             position: new THREE.Vector3(bx, 0.95, bz), // sit target height
             rotation: bRot
           });
@@ -516,16 +545,16 @@ export class CityGenerator {
             let offsetSide, offsetFront;
             if (b === 0) {
               // Bottle 1: Standing near the bench
-              offsetSide = -1.3 + (Math.random() - 0.5) * 0.2;
-              offsetFront = 0.3 + Math.random() * 0.3;
+              offsetSide = -1.3 + (this.random() - 0.5) * 0.2;
+              offsetFront = 0.3 + this.random() * 0.3;
             } else if (b === 1) {
               // Bottle 2: Lying down in front of the bench
-              offsetSide = (Math.random() - 0.5) * 1.0;
-              offsetFront = 0.8 + Math.random() * 0.4;
+              offsetSide = (this.random() - 0.5) * 1.0;
+              offsetFront = 0.8 + this.random() * 0.4;
             } else {
               // Bottle 3: Lying down near the trash bin
-              offsetSide = 1.7 + (Math.random() - 0.5) * 0.2;
-              offsetFront = 0.1 + Math.random() * 0.3;
+              offsetSide = 1.7 + (this.random() - 0.5) * 0.2;
+              offsetFront = 0.1 + this.random() * 0.3;
             }
 
             const botX = bx + offsetSide * cosB - offsetFront * sinB;
@@ -536,15 +565,15 @@ export class CityGenerator {
 
             if (isLying) {
               botY = 0.4 + 0.04; // sidewalk 0.4 + bottle radius 0.04
-              const randRot = Math.random() * Math.PI * 2;
+              const randRot = this.random() * Math.PI * 2;
               const qBase = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, randRot, 0));
               qBot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), bRot).multiply(qBase);
             } else {
               botY = 0.4 + 0.125; // sidewalk 0.4 + half bottle height 0.125
-              qBot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.random() * Math.PI * 2);
+              qBot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.random() * Math.PI * 2);
             }
 
-            const useGreen = Math.random() > 0.5;
+            const useGreen = this.random() > 0.5;
             mat.compose(pos.set(botX, botY, botZ), qBot, scale.set(1, 1, 1));
 
             if (useGreen) {
@@ -560,22 +589,22 @@ export class CityGenerator {
         }
 
         // ── Puddles (placed in some road lanes, 60% chance per block) ──
-        if (Math.random() < 0.6 && puddleIdx < maxPuddles) {
+        if (this.random() < 0.6 && puddleIdx < maxPuddles) {
           let pX, pZ;
-          if (Math.random() > 0.5) {
+          if (this.random() > 0.5) {
             // Horizontal road lane (Z offset is near block boundary, e.g. 20m)
-            pX = ox + (Math.random() - 0.5) * 36;
-            pZ = oz + (Math.random() > 0.5 ? 20.0 : -20.0);
+            pX = ox + (this.random() - 0.5) * 36;
+            pZ = oz + (this.random() > 0.5 ? 20.0 : -20.0);
           } else {
             // Vertical road lane (X offset is near block boundary, e.g. 20m)
-            pX = ox + (Math.random() > 0.5 ? 20.0 : -20.0);
-            pZ = oz + (Math.random() - 0.5) * 36;
+            pX = ox + (this.random() > 0.5 ? 20.0 : -20.0);
+            pZ = oz + (this.random() - 0.5) * 36;
           }
 
           // Random puddle size (scale X and Y in local space)
-          const scaleX = 0.6 + Math.random() * 1.4;
-          const scaleY = 0.4 + Math.random() * 0.8;
-          const pRotZ = Math.random() * Math.PI * 2;
+          const scaleX = 0.6 + this.random() * 1.4;
+          const scaleY = 0.4 + this.random() * 0.8;
+          const pRotZ = this.random() * Math.PI * 2;
 
           // Local Z rotation for puddle orientation
           const qZ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), pRotZ);
@@ -687,8 +716,8 @@ export class CityGenerator {
     
     // Slight noise for asphalt (compressed: fewer rects, smaller size)
     for (let i = 0; i < 1500; i++) {
-        ctx.fillStyle = Math.random() > 0.5 ? '#1a1d21' : '#2a2e35';
-        ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+        ctx.fillStyle = this.random() > 0.5 ? '#1a1d21' : '#2a2e35';
+        ctx.fillRect(this.random() * 256, this.random() * 256, 2, 2);
     }
     
     // Dashed lines removed for plain asphalt road look
